@@ -22,9 +22,6 @@ class ProductController extends Controller
     public function store(Request $request)
     {
         $id_user=Auth::id();
-        //  $request->validate([
-        //     'id_user'=>'required|exists:users,id'
-        // ]);
         $product=Product::create(
            [
             'nom_produit'=>$request->nom_produit,
@@ -51,13 +48,12 @@ class ProductController extends Controller
         return response()->json($product,200);
     }
     public function destroy (Request $request,$id){
-        $id_user=Auth::user()->id;
-        $product=Product::findOrFail($id);
-        
-        if($product->id_user != $id_user)
-        return response()->json(['message'=>'unthorized'],403);
-        
+        $product = Product::findOrFail($id);
+
+        if (!$product)
+            return response()->json(['message'=>'Product not exist'], 403);
+
         $product->delete();
-        return response()->json(null,204);
+        return response()->json(null, 204);
     }
 }

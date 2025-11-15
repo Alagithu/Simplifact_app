@@ -97,10 +97,9 @@ class DevisController extends Controller
         return response()->json($devis,200);
     }
     public function destroy (Request $request,$id){
-        $id_user=Auth::user()->id;
         $devi=Devis::findOrFail($id);
         
-        if($devi->id_user != $id_user)
+        if(!$devi)
         return response()->json(['message'=>'unthorized'],403);
         
         $devi->delete();

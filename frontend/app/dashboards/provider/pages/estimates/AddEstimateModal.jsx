@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 
 export default function AddEstimateModal({ onClose, onSave }) {
   const [estimateData, setEstimateData] = useState({
-    ref_devis: `EST-${Date.now()}`,
+    ref_devis: `E-${Date.now()}`,
     categorie: "",
   });
 
@@ -17,7 +17,7 @@ export default function AddEstimateModal({ onClose, onSave }) {
         const token = localStorage.getItem("token");
         if (!token) return;
 
-        const res = await fetch("http://127.0.0.1:8000/api/user", {
+        const res = await fetch("/api/user", {
           headers: {
             "Content-Type": "application/json",
             Authorization: `Bearer ${token}`,
@@ -42,7 +42,7 @@ export default function AddEstimateModal({ onClose, onSave }) {
         const token = localStorage.getItem("token");
         if (!token) return;
 
-        const res = await fetch("http://127.0.0.1:8000/api/product/all", {
+        const res = await fetch("/api/product/all", {
           headers: {
             "Content-Type": "application/json",
             Authorization: `Bearer ${token}`,
@@ -115,7 +115,7 @@ export default function AddEstimateModal({ onClose, onSave }) {
     };
 
     try {
-      const res = await fetch("http://127.0.0.1:8000/api/devis/add", {
+      const res = await fetch("/api/devis/add", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",

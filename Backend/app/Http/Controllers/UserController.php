@@ -3,6 +3,9 @@
 namespace App\Http\Controllers;
 
 use App\Http\Controllers\Controller;
+use App\Models\Facture;
+use App\Models\Product;
+use App\Models\Reclamation;
 use App\Models\User;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -13,7 +16,7 @@ class UserController extends Controller
 {
      public function getAll(Request $request)
     {
-    $users = User::with(['user:id,name'])->get();
+    $users =User::select('id', 'name','phone','cdi','society', 'email','category', 'role', 'created_at')->with(['user:id,name'])->get();
     return response()->json($users);
     
     }
@@ -42,6 +45,36 @@ class UserController extends Controller
             'User'=>$user
             ],201);
     }
+    public function adminDashboard(Request $request)
+{
+    // Charge toutes les données nécessaires 
+    $users = User::select('id', 'name', 'email', 'role', 'created_at')->get();
+    $products = Product::select('id', 'nom_produit', 'prix', 'created_at', 'id_user')->get();
+    $factures = Facture::select('id', 'montant_ttc', 'created_at', 'id_user')->get();
+    $claims = Reclamation::select('id', 'title', 'created_at', 'id_user')->get();
+
+    // Structure la réponse
+    return response()->json([
+        'users' => $users,
+        'products' => $products,
+        'factures' => $factures,
+        'claims' => $claims,
+    ]);
+}
+
+public function buyerDashboard(Request $request)
+{
+    $user = Auth::user();
+
+    $products = Product::where('id_user', $user->id)->select('id', 'nom_produit', 'prix', 'created_at')->get();
+    $factures = Facture::where('id_user', $user->id)->select('id', 'name_client', 'montant_ttc', 'created_at')->get();
+
+    return response()->json([
+        'products' => $products,
+        'factures' => $factures,
+    ]);
+}
+
     public function login(Request $request)
     {
         $request->validate([

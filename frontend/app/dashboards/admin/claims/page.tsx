@@ -4,204 +4,192 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import ViewClaimModal from "./ViewClaimModal";
+import { LayoutDashboard,Eye,Trash2, Users, Package, AlertCircle, LogOut } from "lucide-react";
 
-export default function Claims() {
+export default function ClaimsPage() {
   const [claims, setClaims] = useState<any[]>([]);
   const [selectedClaim, setSelectedClaim] = useState<any | null>(null);
-  const [isAddModalOpen, setIsAddModalOpen] = useState(false);
   const [isViewModalOpen, setIsViewModalOpen] = useState(false);
 
   const router = useRouter();
+  const token = typeof window !== "undefined" ? localStorage.getItem("token") : null;
 
   const handleLogout = async () => {
     try {
-      const token = localStorage.getItem("token");
-
-      await fetch("http://127.0.0.1:8000/api/logout", {
+      if (!token) {
+        router.push("/");
+        return;
+      }
+      await fetch("/api/logout", {
         method: "POST",
         headers: {
           Authorization: `Bearer ${token}`,
           "Content-Type": "application/json",
         },
-      });
+      }).catch(() => {});
 
-      // Nettoyer le storage
-      localStorage.removeItem("token");
-      localStorage.removeItem("role");
-
-      // Rediriger vers la page d'accueil
+      localStorage.clear();
       router.push("/");
     } catch (error) {
-      console.error("Erreur de déconnexion", error);
+      console.error("Erreur de déconnexion :", error);
     }
   };
 
-  const handleSaveClaim = (newClaim: any) => {
-    setClaims([...claims, newClaim]);
-  };
-
+  //Voir une réclamation
   const handleViewClaim = (id: number) => {
     const claim = claims.find((c) => c.id === id);
     setSelectedClaim(claim);
     setIsViewModalOpen(true);
   };
 
-  // Supprimer une réclamation
+  //Supprimer une réclamation
   const handleDeleteClaim = async (id: number) => {
     try {
-      const token = localStorage.getItem("token");
-      const res = await fetch(`http://127.0.0.1:8000/api/reclamation/${id}`, {
+      const res = await fetch(`/api/reclamation/${id}`, {
         method: "DELETE",
         headers: { Authorization: `Bearer ${token}` },
       });
-
-      if (res.ok) {
-        setClaims(claims.filter((claim) => claim.id !== id));
-      }
+      if (res.ok) setClaims(claims.filter((claim) => claim.id !== id));
     } catch (error) {
-      console.error("Erreur lors de la suppression:", error);
+      console.error("Erreur lors de la suppression :", error);
     }
   };
 
-  // Charger toutes les réclamations
+  //Charger toutes les réclamations
   useEffect(() => {
     const fetchClaims = async () => {
-      const token =
-        typeof window !== "undefined" ? localStorage.getItem("token") : null;
-
-      if (!token) {
-        console.error("Token manquant, impossible de récupérer les réclamations.");
-        return;
-      }
-
+      if (!token) return;
       try {
-        const res = await fetch("http://127.0.0.1:8000/api/reclamation", {
+        const res = await fetch("/api/reclamation/all", {
           headers: { Authorization: `Bearer ${token}` },
         });
         const data = await res.json();
         setClaims(data);
       } catch (error) {
-        console.error("Erreur lors du chargement des réclamations:", error);
+        console.error("Erreur lors du chargement :", error);
       }
     };
-
     fetchClaims();
-  }, []);
+  }, [token]);
 
   return (
-    <div className="flex h-screen">
-      {/* Sidebar */}
-      <div className="w-64 bg-black text-white p-6 flex flex-col justify-between">
+    <div className="flex h-screen bg-gradient-to-br from-gray-50 to-gray-100 text-gray-900 font-inter">
+      <aside className="w-64 bg-[#0f172a] text-gray-100 flex flex-col justify-between p-6 shadow-lg">
         <div>
-          <h1 className="text-3xl font-bold mb-10">Logo</h1>
-          <nav>
-            <ul>
-              <li className="mb-4">
-                <Link
-                  href="/dashboards/admin"
-                  className="flex items-center p-3 rounded-md hover:bg-gray-800"
-                >
-                  <svg className="w-5 h-5 mr-3" fill="currentColor" viewBox="0 0 20 20">
-                    <path d="M10 2a8 8 0 100 16 8 8 0 000-16zM8 11.5a1.5 1.5 0 113 0v4a1.5 1.5 0 11-3 0v-4zM10 8a1.5 1.5 0 11-3 0 1.5 1.5 0 013 0z" clipRule="evenodd" fillRule="evenodd"></path>
-                  </svg>
-                    Dashboard
-                </Link>
-              </li>
-              <li className="mb-4">
-                <Link
-                  href="/dashboards/admin/user"
-                  className="flex items-center p-3 rounded-md hover:bg-gray-800"
-                >
-                <svg className="w-5 h-5 mr-3" fill="currentColor" viewBox="0 0 20 20">
-                  <path d="M13 7a3 3 0 11-6 0 3 3 0 016 0zM4 15a4 4 0 014-4h4a4 4 0 014 4v1H4v-1z" />
-                </svg>
-                  Users
-                </Link>
-              </li>
-              <li className="mb-4">
-                <Link
-                  href="#"
-                  className="flex items-center p-3 rounded-md hover:bg-gray-800"
-                >
-                  <svg className="w-5 h-5 mr-3" fill="currentColor" viewBox="0 0 20 20">
-                    <path d="M10 2a8 8 0 100 16 8 8 0 000-16zM9 11a1 1 0 012 0v2a1 1 0 11-2 0v-2z"></path>
-                  </svg> 
-                    Products
-                </Link>
-              </li>
-              <li className="mb-4">
-                <Link
-                  href="#"
-                  className="flex items-center p-3 rounded-md  bg-[#1221ca]"
-                >
-                  <svg className="w-5 h-5 mr-3" fill="currentColor" viewBox="0 0 20 20">
-                    <path d="M17.707 2.293a1 1 0 00-1.414 0L12 6.586 7.707 2.293a1 1 0 10-1.414 1.414L10.586 8 6.293 12.293a1 1 0 101.414 1.414L12 9.414l4.293 4.293a1 1 0 001.414-1.414L13.414 8l4.293-4.293a1 1 0 000-1.414z"></path>
-                  </svg> 
-                    Claims
-                </Link>
-              </li>
-            </ul>
+          <div className="flex items-center mb-8 space-x-3">
+            <img src="/logo.png" alt="Logo" width={45} height={45} className="rounded-full" />
+            <h1 className="text-lg font-semibold">Admin</h1>
+          </div>
+          <nav className="space-y-3">
+            <Link
+              href="/dashboards/admin"
+              className="flex items-center space-x-3 p-3 rounded-lg hover:bg-gray-800 transition"
+            >
+              <LayoutDashboard size={18} /> <span>Dashboard</span>
+            </Link>
+            <Link
+              href="/dashboards/admin/user"
+              className="flex items-center space-x-3 p-3 rounded-lg hover:bg-gray-800 transition"
+            >
+              <Users size={18} /> <span>Users</span>
+            </Link>
+            <Link
+              href="/dashboards/admin/product"
+              className="flex items-center space-x-3 p-3 rounded-lg hover:bg-gray-800 transition"
+            >
+              <Package size={18} /> <span>Products</span>
+            </Link>
+            <Link
+              href="#"
+              className="flex items-center space-x-3 p-3 rounded-lg bg-[#1221ca] hover:bg-blue-700 transition"
+            >
+              <AlertCircle size={18} /> <span>Claims</span>
+            </Link>
           </nav>
         </div>
 
-        <div className="mt-auto">
-          <button
-            onClick={handleLogout}
-            className="flex items-center p-3 rounded-md hover:bg-gray-800 w-full text-left"
-          >
-          <svg className="w-5 h-5 mr-3" fill="currentColor" viewBox="0 0 20 20">
-            <path d="M10 2a8 8 0 100 16 8 8 0 000-16zM8 11a1 1 0 112 0v2a1 1 0 11-2 0v-2zM10 7a1 1 0 110 2 1 1 0 010-2z"></path>
-          </svg> 
-            Logout
-          </button>
-        </div>
-      </div>
-
+        <button
+          onClick={handleLogout}
+          className="flex items-center space-x-3 p-3 rounded-lg hover:bg-gray-800 transition"
+        >
+          <LogOut size={18} /> <span>Logout</span>
+        </button>
+      </aside>
       {/* Main */}
       <main className="flex-1 p-8 overflow-y-auto">
-        <div className="bg-[#1221ca] text-white p-4 rounded mb-6">
-          <h2 className="text-xl font-semibold">Admin</h2>
+        <div className="flex items-center justify-between mb-8">
+          <h2 className="text-2xl font-semibold text-[#1221ca]">Claims Management</h2>
         </div>
-        <div className="bg-white rounded-lg shadow p-6">
-          <h3 className="font-bold text-lg mb-4">Claims</h3>
-          <div className="grid grid-cols-5 gap-4 font-bold border-b pb-2">
-            <div>Claim ID</div>
-            <div>Title</div>
-            <div>Description</div>
-            <div>Date</div>
-            <div>Actions</div>
+
+        <div className="bg-white rounded-xl shadow-md p-6">
+          <div className="flex justify-between items-center mb-6">
+            <h3 className="text-lg font-semibold text-gray-800">All Claims</h3>
+            <span className="text-sm text-gray-500">
+              Total: <strong>{claims.length}</strong>
+            </span>
           </div>
-          {claims.length ? (
-            claims.map((c) => (
-              <div
-                key={c.id}
-                className="grid grid-cols-5 gap-4 items-center border-b py-3 min-h-[50px]"
-              >
-                <div>{c.id}</div>
-                <div>{c.title}</div>
-                <div className="truncate max-w-[200px]">{c.description}</div>
-                <div>{new Date(c.created_at).toLocaleDateString()}</div>
-                <div className="flex gap-2">
-                  <button onClick={() => handleViewClaim(c.id)} className="bg-green-500 text-white px-2 rounded">
-                    View
-                  </button>
-                  <button
-                    onClick={() => handleDeleteClaim(c.id)}
-                    className="bg-red-500 hover:bg-red-600 text-white px-2 py-1 rounded text-sm"
-                  >
-                    Delete
-                  </button>
-                </div>
-              </div>
-            ))
-          ) : (
-            <p className="mt-4 text-gray-500">No claims found.</p>
-          )}
+
+          {/*Table*/}
+          <div className="overflow-x-auto">
+            <table className="min-w-full text-sm text-left border-collapse">
+              <thead className="bg-gray-100 text-gray-700 uppercase text-xs font-semibold border-b">
+                <tr>
+                  <th className="p-3">ID</th>
+                  <th className="p-3">Sender</th>
+
+                  <th className="p-3">Title</th>
+                  <th className="p-3">Description</th>
+                  <th className="p-3">Date</th>
+                  <th className="p-3 text-center">Actions</th>
+                </tr>
+              </thead>
+              <tbody>
+                {claims.length > 0 ? (
+                  claims.map((c) => (
+                    <tr key={c.id} className="border-b hover:bg-gray-50 transition">
+                      <td className="p-3 font-medium text-gray-800">{c.id}</td>
+                      <td className="p-3 text-gray-700">{c.user?.name || "—"}</td>
+                      <td className="p-3">{c.title}</td>
+                      <td className="p-3 text-gray-600 truncate max-w-[250px]">{c.description}</td>
+                      <td className="p-3 text-gray-500">
+                        {new Date(c.created_at).toLocaleDateString()}
+                      </td>
+                      <td className="p-3 flex justify-center gap-2">
+                        <button
+                          onClick={() => handleViewClaim(c.id)}
+                          className="px-3 py-1 bg-green-100 text-green-700 rounded-lg hover:bg-green-200 transition"
+                        >
+                          <Eye size={14} />
+                        </button>
+                        <button
+                          onClick={() => handleDeleteClaim(c.id)}
+                          className="px-3 py-1 bg-red-100 text-red-700 rounded-lg hover:bg-red-200 transition"
+                        >
+                          <Trash2 size={14} />
+                        </button>
+                      </td>
+                    </tr>
+                  ))
+                ) : (
+                  <tr>
+                    <td colSpan={5} className="text-center text-gray-500 py-6">
+                      No claims found.
+                    </td>
+                  </tr>
+                )}
+              </tbody>
+            </table>
+          </div>
         </div>
+
+        {/*Modal*/}
+        {isViewModalOpen && selectedClaim && (
+          <ViewClaimModal
+            onClose={() => setIsViewModalOpen(false)}
+            claimData={selectedClaim}
+          />
+        )}
       </main>
-      {isViewModalOpen && selectedClaim && (
-              <ViewClaimModal onClose={() => setIsViewModalOpen(false)} claimData={selectedClaim} />
-            )}
     </div>
   );
 }

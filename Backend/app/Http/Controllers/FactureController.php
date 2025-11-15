@@ -95,12 +95,11 @@ public function store(Request $request)
 
     public function destroy(Request $request, $id)
     {
-    $userId = Auth::id(); // équivalent plus simple
 
     $facture = Facture::findOrFail($id);
 
     // Vérification propriétaire
-    if ($facture->id_user !== $userId) {
+    if (!$facture) {
         return response()->json([
             'message' => 'Unauthorized'
         ], 403);

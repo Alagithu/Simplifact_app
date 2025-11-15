@@ -1,7 +1,9 @@
 <?php
 
+use App\Http\Controllers\ConversationController;
 use App\Http\Controllers\DevisController;
 use App\Http\Controllers\FactureController;
+use App\Http\Controllers\MessageController;
 use App\Http\Controllers\ProductController;
 use App\Http\Controllers\ReclamationController;
 use App\Http\Controllers\UserController;
@@ -12,12 +14,14 @@ Route::middleware('auth:sanctum')->get('/user', function (Request $request) {
     return $request->user();
 });
 
-// user routes (ajouter pagination)
+// user routes
 Route::get('users/all',[UserController::class,'index']);
 Route::get('users/{id}',[UserController::class,'show']);
 Route::delete('users/{id}',[UserController::class,'destroy']);
 Route::put('users/{id}',[UserController::class,'update']);
 Route::get('users', [UserController::class, 'getAll'])->middleware('auth:sanctum');
+Route::middleware('auth:sanctum')->get('/admin/dashboard', [UserController::class, 'adminDashboard']);
+Route::middleware('auth:sanctum')->get('/buyer/dashboard', [UserController::class, 'buyerDashboard']);
 
 
 // auth routes
@@ -27,15 +31,15 @@ Route::post('logout',[UserController::class,'logout'])->middleware('auth:sanctum
 
 Route::middleware('auth:sanctum')->group(function()
 {    
-// reclamations routes (ajouter pagination)
-Route::get('reclamation/all',[ReclamationController::class,'index']);
+// reclamations routes
+Route::get('reclamation/all',[ReclamationController::class,'getAll'])->middleware('auth:sanctum');
 Route::post('reclamation/add',[ReclamationController::class,'store']);
 Route::put('reclamation/{id}',[ReclamationController::class,'update']);
 Route::get('reclamation/{id}',[ReclamationController::class,'show']);
 Route::delete('reclamation/{id}',[ReclamationController::class,'destroy']);
-Route::get('reclamation', [ReclamationController::class, 'getAll'])->middleware('auth:sanctum');
+Route::get('reclamation', [ReclamationController::class, 'index']);
 
-// product routes (ajouter pagination)
+// product routes
 Route::get('product/all',[ProductController::class,'index']);
 Route::post('product/add',[ProductController::class,'store']);
 Route::put('product/{id}',[ProductController::class,'update']);
@@ -62,27 +66,41 @@ Route::delete('devis/{id}',[DevisController::class,'destroy']);
 Route::get('devis', [DevisController::class, 'getAll'])->middleware('auth:sanctum');
 
 // get user papers
-
 Route::get('user/{id}/factures',[UserController::class,'getUserFactures']);
 Route::get( 'user/{id}/devis',[UserController::class,'getUserDevis']);
 Route::get( 'user/{id}/products',[UserController::class,'getUserProducts']);
+
+
+
+
+
+ // Liste des conversations de l'utilisateur
+    Route::get('/conversations', [ConversationController::class, 'index']);
+    
+    // Vérifier si une conversation existe avec un utilisateur
+    Route::get('/conversations/check', [ConversationController::class, 'check']);
+    
+    // Créer une nouvelle conversation
+    Route::post('/conversations', [ConversationController::class, 'store']);
+    
+    // Détails d'une conversation
+    Route::get('/conversations/{id}', [ConversationController::class, 'show']);
+    
+    // === MESSAGES ===
+    
+    // Récupérer les messages d'une conversation
+    Route::get('/conversations/{conversation}/messages', [MessageController::class, 'index']);
+    
+    // Envoyer un message
+    Route::post('/conversations/{conversation}/messages', [MessageController::class, 'store']);
+    
+    // Marquer les messages comme lus
+    Route::post('/conversations/{conversation}/mark-as-read', [MessageController::class, 'markAsRead']);
+    
+    // Supprimer un message
+    Route::delete('/messages/{id}', [MessageController::class, 'destroy']);
+
 });
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 
 
 

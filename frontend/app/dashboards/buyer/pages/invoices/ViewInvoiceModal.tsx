@@ -58,7 +58,7 @@ export default function ViewInvoiceModal({ onClose, invoiceData }: ViewInvoiceMo
   };
 
   if (!invoiceData) return null;
-  console.log("📦 invoiceData reçu :", invoiceData);
+ 
 
   return (
     <div className="fixed inset-0 bg-gray-600 bg-opacity-50 flex items-center justify-center p-4 z-50">

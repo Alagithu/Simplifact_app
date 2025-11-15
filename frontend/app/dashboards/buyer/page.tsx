@@ -1,86 +1,107 @@
 "use client"
 
-import Link from 'next/link'
-import React, { useState, useEffect } from 'react'
+import Link from "next/link"
+import React, { useState, useEffect, useMemo } from "react"
 import { useRouter } from "next/navigation"
+import {
+  LayoutDashboard,
+  Package,
+  FileText,
+  BarChart3,
+  MessageSquare,
+  FileSignature,
+  AlertCircle,
+  LogOut,
+  Menu,
+} from "lucide-react"
 
 const DashboardBuyer = () => {
   const [products, setProducts] = useState<any[]>([])
   const [factures, setFactures] = useState<any[]>([])
-  const [filteredProducts, setFilteredProducts] = useState<any[]>([])
-  const [filteredFactures, setFilteredFactures] = useState<any[]>([])
-  const [totalFactures, setTotalFactures] = useState<number>(0)
   const [selectedDate, setSelectedDate] = useState<string | null>(null)
+  const [currentDate, setCurrentDate] = useState(new Date())
+  const [sidebarOpen, setSidebarOpen] = useState(false)
 
-  const [currentDate, setCurrentDate] = useState(new Date(2025, 8, 1)) // Septembre 2025
-
+  const router = useRouter()
   const token = typeof window !== "undefined" ? localStorage.getItem("token") : null
 
-    const router = useRouter()
-
+  // Déconnexion
   const handleLogout = async () => {
     try {
-      const token = localStorage.getItem("token")
+      if (!token) {
+        router.push("/")
+        return
+      }
 
-      await fetch("http://127.0.0.1:8000/api/logout", {
+      await fetch("/api/logout", {
         method: "POST",
         headers: {
-          "Authorization": `Bearer ${token}`,
+          Authorization: `Bearer ${token}`,
           "Content-Type": "application/json",
         },
-      })
+      }).catch(() => {})
 
-      // Nettoyer le storage
-      localStorage.removeItem("token")
-      localStorage.removeItem("role")
-
-      // Rediriger vers la page d'accueil
+      localStorage.clear()
       router.push("/")
     } catch (error) {
-      console.error("Erreur de déconnexion", error)
+      console.error("Erreur de déconnexion :", error)
     }
   }
+  const [userName, setUserName] = useState<string>("");
 
-
-  // Charger les produits et factures
   useEffect(() => {
-    const fetchData = async () => {
-      try {
-        if (!token) return
-        const resProducts = await fetch("http://127.0.0.1:8000/api/product/all", {
-          headers: { Authorization: `Bearer ${token}` }
-        })
-        const productsData = await resProducts.json()
-        setProducts(productsData)
+    if (!token) return;
+    fetch("/api/user", {
+      headers: { Authorization: `Bearer ${token}` },
+    })
+      .then((res) => res.ok && res.json())
+      .then((data) => {
+        if (data?.name) setUserName(data.name);
+      })
+      .catch(console.error);
+  }, [token]);
 
-        const resFactures = await fetch("http://127.0.0.1:8000/api/facture/all", {
-          headers: { Authorization: `Bearer ${token}` }
+  useEffect(() => {
+    if (!token) return
+
+    const fetchDashboard = async () => {
+      try {
+        const res = await fetch("/api/buyer/dashboard", {
+          headers: { Authorization: `Bearer ${token}` },
+          cache: "no-store",
         })
-        const facturesData = await resFactures.json()
-        setFactures(facturesData)
+        if (!res.ok) throw new Error("Erreur serveur")
+        const data = await res.json()
+
+        setProducts(data.products || [])
+        setFactures(data.factures || [])
       } catch (err) {
-        console.error(err)
+        console.error("Erreur lors du fetch dashboard buyer:", err)
       }
     }
-    fetchData()
+
+    fetchDashboard()
   }, [token])
 
-  // Filtrer selon la date sélectionnée
-  useEffect(() => {
-    if (selectedDate) {
-      const fProducts = products.filter(p => p.created_at.startsWith(selectedDate))
-      const fFactures = factures.filter(f => f.created_at.startsWith(selectedDate))
-      setFilteredProducts(fProducts)
-      setFilteredFactures(fFactures)
-      setTotalFactures(fFactures.reduce((acc, f) => acc + (f.montant_ttc || 0), 0))
-    } else {
-      setFilteredProducts(products)
-      setFilteredFactures(factures)
-      setTotalFactures(factures.reduce((acc, f) => acc + (f.montant_ttc || 0), 0))
-    }
-  }, [selectedDate, products, factures])
+  // Filtre par date
+  const filteredProducts = useMemo(() => {
+    if (!selectedDate) return products
+    const d = new Date(selectedDate)
+    return products.filter((p) => p.created_at && new Date(p.created_at) <= d)
+  }, [selectedDate, products])
 
-  // Générer jours pour la semaine actuelle
+  const filteredFactures = useMemo(() => {
+    if (!selectedDate) return factures
+    const d = new Date(selectedDate)
+    return factures.filter((f) => f.created_at && new Date(f.created_at) <= d)
+  }, [selectedDate, factures])
+
+  const totalFactures = useMemo(() => {
+    const total = filteredFactures.reduce((acc, f) => acc + (f.montant_ttc || 0), 0)
+    return parseFloat(total.toFixed(1))
+  }, [filteredFactures])
+
+  // calendrier 
   const getWeekDays = (date: Date) => {
     const days: Date[] = []
     const start = new Date(date)
@@ -92,111 +113,128 @@ const DashboardBuyer = () => {
     return days
   }
 
-  const weekDays = getWeekDays(currentDate)
-
-  const prevWeek = () => setCurrentDate(prev => { const d = new Date(prev); d.setDate(d.getDate() - 7); return d })
-  const nextWeek = () => setCurrentDate(prev => { const d = new Date(prev); d.setDate(d.getDate() + 7); return d })
+  const weekDays = useMemo(() => getWeekDays(currentDate), [currentDate])
+  const prevWeek = () =>
+    setCurrentDate((prev) => new Date(prev.getFullYear(), prev.getMonth(), prev.getDate() - 7))
+  const nextWeek = () =>
+    setCurrentDate((prev) => new Date(prev.getFullYear(), prev.getMonth(), prev.getDate() + 7))
 
   return (
-    <div className="flex h-screen bg-gray-100">
+    <div className="flex h-screen bg-gradient-to-br from-gray-50 to-gray-100 text-gray-900 font-inter">
       {/* Sidebar */}
-      <div className="w-64 bg-black text-white p-6 flex flex-col justify-between">
-         <div>
-           <h1 className="text-3xl font-bold mb-10">Logo</h1>
-            <nav>
-               <ul>
-                 <li className="mb-4">
-                   <Link href="#" className="flex items-center p-3 rounded-md bg-[#1221ca]">
-                     <svg className="w-5 h-5 mr-3" fill="currentColor" viewBox="0 0 20 20">
-                        <path d="M10 2a8 8 0 100 16 8 8 0 000-16zM8 11.5a1.5 1.5 0 113 0v4a1.5 1.5 0 11-3 0v-4zM10 8a1.5 1.5 0 11-3 0 1.5 1.5 0 013 0z" clipRule="evenodd" fillRule="evenodd"></path>
-                      </svg>
-                         Dashboard 
-                    </Link>
-                  </li>
-                  <li className="mb-4">
-                    <Link href="#" className="flex items-center p-3 rounded-md hover:bg-gray-800">
-                      <svg className="w-5 h-5 mr-3" fill="currentColor" viewBox="0 0 20 20">
-                        <path d="M2.003 5.884L10 9.882l7.997-3.998A2 2 0 0016 4H4a2 2 0 00-1.997 1.884zM18 8.118l-8 4-8-4V14a2 2 0 002 2h12a2 2 0 002-2V8.118z"></path>
-                      </svg>
-                       Messages
-                    </Link> 
-                  </li>
-                  <li className="mb-4">
-                    <Link href="/dashboards/buyer/pages/invoices" className="flex items-center p-3 rounded-md hover:bg-gray-800"> 
-                      <svg className="w-5 h-5 mr-3" fill="currentColor" viewBox="0 0 20 20">
-                        <path d="M10 2a8 8 0 100 16 8 8 0 000-16zM9 11V8a1 1 0 012 0v3a1 1 10 11-2 0zM10 15a1 1 0 110-2 1 1 0 010 2z"></path>
-                      </svg>
-                       Invoices
-                    </Link> 
-                  </li>
-                  <li className="mb-4">
-                    <Link href="/dashboards/buyer/pages/estimates" className="flex items-center p-3 rounded-md hover:bg-gray-800">
-                      <svg className="w-5 h-5 mr-3" fill="currentColor" viewBox="0 0 20 20">
-                        <path d="M13 6a3 3 0 11-6 0 3 3 0 016 0zM15 8.114a1 1 0 011-1h2.5L12 1.5 3.5 7.114H6a1 1 0 011 1v7.5A1.5 1.5 0 008.5 17h3a1.5 1.5 0 001.5-1.5V8.114z"></path>
-                      </svg> 
-                        Estimates 
-                    </Link> 
-                  </li> 
-                  <li className="mb-4">
-                    <Link href="/dashboards/buyer/pages/products" className="flex items-center p-3 rounded-md hover:bg-gray-800">
-                      <svg className="w-5 h-5 mr-3" fill="currentColor" viewBox="0 0 20 20">
-                        <path d="M10 2a8 8 0 100 16 8 8 0 000-16zM9 11a1 1 0 012 0v2a1 1 0 11-2 0v-2z"></path>
-                      </svg> 
-                        Products
-                    </Link> 
-                  </li>
-                  <li className="mb-4"> 
-                    <Link href="/dashboards/buyer/pages/claims" className="flex items-center p-3 rounded-md hover:bg-gray-800"> 
-                      <svg className="w-5 h-5 mr-3" fill="currentColor" viewBox="0 0 20 20">
-                        <path d="M17.707 2.293a1 1 0 00-1.414 0L12 6.586 7.707 2.293a1 1 0 10-1.414 1.414L10.586 8 6.293 12.293a1 1 0 101.414 1.414L12 9.414l4.293 4.293a1 1 0 001.414-1.414L13.414 8l4.293-4.293a1 1 0 000-1.414z"></path>
-                      </svg> 
-                        Claims
-                    </Link>
-                  </li>
-                </ul>
-              </nav>
+      <aside
+        className={`fixed md:static top-0 left-0 h-full w-64 bg-[#0f172a] text-gray-100 flex flex-col justify-between p-6 shadow-lg transform transition-transform duration-300 z-50 ${
+          sidebarOpen ? "translate-x-0" : "-translate-x-full md:translate-x-0"
+        }`}
+      >
+        <div>
+          <div className="flex items-center justify-between mb-8">
+            <div className="flex items-center space-x-3">
+              <img src="/logo.png" alt="Logo" width={45} height={45} className="rounded-full" />
+              <h1 className="text-lg font-semibold">Buyer</h1>
             </div>
-            <div className="mt-auto">
-              <button onClick={handleLogout} className="flex items-center p-3 rounded-md hover:bg-gray-800 w-full text-left"> 
-                  <svg className="w-5 h-5 mr-3" fill="currentColor" viewBox="0 0 20 20">
-                  <path d="M10 2a8 8 0 100 16 8 8 0 000-16zM8 11a1 1 0 112 0v2a1 1 0 11-2 0v-2zM10 7a1 1 0 110 2 1 1 0 010-2z"></path>
-                  </svg> 
-                    Logout 
-              </button> 
+            <button
+              className="md:hidden text-gray-400 hover:text-white"
+              onClick={() => setSidebarOpen(false)}
+            >
+              ✕
+            </button>
+          </div>
+
+          <nav className="space-y-3">
+            <Link
+              href="#"
+              className="flex items-center space-x-3 p-3 rounded-lg bg-[#1221ca] hover:bg-blue-700 transition"
+            >
+              <LayoutDashboard size={18} /> <span>Dashboard</span>
+            </Link>
+            <Link
+              href="/dashboards/buyer/pages/messages"
+              className="flex items-center space-x-3 p-3 rounded-lg hover:bg-gray-800 transition"
+            >
+              <MessageSquare size={18} /> <span>Messages</span>
+            </Link>
+            <Link
+              href="/dashboards/buyer/pages/invoices"
+              className="flex items-center space-x-3 p-3 rounded-lg hover:bg-gray-800 transition"
+            >
+              <FileText size={18} /> <span>Invoices</span>
+            </Link>
+            <Link
+              href="/dashboards/buyer/pages/estimates"
+              className="flex items-center space-x-3 p-3 rounded-lg hover:bg-gray-800 transition"
+            >
+              <FileSignature size={18} /> <span>Estimates</span>
+            </Link>
+            <Link
+              href="/dashboards/buyer/pages/products"
+              className="flex items-center space-x-3 p-3 rounded-lg hover:bg-gray-800 transition"
+            >
+              <Package size={18} /> <span>Products</span>
+            </Link>
+            <Link
+              href="/dashboards/buyer/pages/claims"
+              className="flex items-center space-x-3 p-3 rounded-lg hover:bg-gray-800 transition"
+            >
+              <AlertCircle size={18} /> <span>Claims</span>
+            </Link>
+          </nav>
+        </div>
+
+        <button
+          onClick={handleLogout}
+          className="flex items-center space-x-3 p-3 rounded-lg hover:bg-gray-800 transition"
+        >
+          <LogOut size={18} /> <span>Logout</span>
+        </button>
+      </aside>
+
+      {sidebarOpen && (
+        <div
+          className="fixed inset-0 bg-black bg-opacity-40 z-40 md:hidden"
+          onClick={() => setSidebarOpen(false)}
+        />
+      )}
+
+      {/* Main */}
+      <main className="flex-1 p-4 sm:p-6 md:p-8 overflow-y-auto w-full">
+        
+        <div className="flex items-center justify-between mb-6 md:hidden">
+          <button onClick={() => setSidebarOpen(true)}>
+            <Menu size={24} className="text-[#1221ca]" />
+          </button>
+          <h2 className="text-xl font-semibold text-[#1221ca]">Buyer Dashboard</h2>
+        </div>
+
+        <h2 className="hidden md:block text-2xl font-semibold mb-6 text-[#1221ca]">
+          Welcome, {userName}
+        </h2>
+
+        
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6 mb-8">
+          {[
+            { title: "Products", value: filteredProducts.length, icon: <Package />, color: "bg-blue-100 text-blue-700" },
+            { title: "Invoices", value: filteredFactures.length, icon: <FileText />, color: "bg-green-100 text-green-700" },
+            { title: "Revenue", value: `$${totalFactures}`, icon: <BarChart3 />, color: "bg-yellow-100 text-yellow-700" },
+          ].map((stat, i) => (
+            <div key={i} className="bg-white rounded-xl shadow-md p-4 sm:p-6 flex items-center space-x-4">
+              <div className={`p-3 rounded-full ${stat.color}`}>{stat.icon}</div>
+              <div>
+                <p className="text-sm text-gray-500">{stat.title}</p>
+                <h3 className="text-xl sm:text-2xl font-bold">{stat.value}</h3>
+              </div>
             </div>
+          ))}
         </div>
 
-      {/* Main Content */}
-      <div className="flex-1 p-8 overflow-y-auto">
-        {/* Header */}
-        <div className="bg-[#1221ca] text-white p-4 rounded-md mb-6">
-          <h2 className="text-xl font-semibold">Buyer</h2>
-        </div>
-
-        {/* Info Cards */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-6">
-          <div className="bg-white rounded-md p-6 text-center shadow-sm">
-            <p className="text-sm text-gray-500">Products</p>
-            <h3 className="text-3xl font-bold">{filteredProducts.length}</h3>
-          </div>
-          <div className="bg-white rounded-md p-6 text-center shadow-sm">
-            <p className="text-sm text-gray-500">Invoices</p>
-            <h3 className="text-3xl font-bold">{filteredFactures.length}</h3>
-          </div>
-          <div className="bg-white rounded-md p-6 text-center shadow-sm">
-            <p className="text-sm text-gray-500">Revenue</p>
-            <h3 className="text-3xl font-bold">${totalFactures}</h3>
-          </div>
-        </div>
-
-        {/* Last invoices & products */}
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
-          <div className="bg-white rounded-md p-6 shadow-sm">
-            <h3 className="text-lg font-semibold mb-4">Last invoices</h3>
-            <ul>
-              {filteredFactures.slice(-4).map((f, idx) => (
-                <li key={idx} className="flex justify-between items-center py-2 border-b last:border-b-0">
-                  <span>{f.name_client } </span>
+        
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-6 mb-8">
+          <div className="bg-white rounded-xl shadow-md p-4 sm:p-6">
+            <h3 className="text-lg font-semibold mb-4 text-[#1221ca]">Last Invoices</h3>
+            <ul className="divide-y divide-gray-200">
+              {filteredFactures.slice(-4).map((f, i) => (
+                <li key={i} className="py-2 flex justify-between text-sm">
+                  <span>{f.name_client}</span>
                   <span>{new Date(f.created_at).toLocaleDateString()}</span>
                   <span className="font-bold">${f.montant_ttc}</span>
                 </li>
@@ -204,13 +242,13 @@ const DashboardBuyer = () => {
             </ul>
           </div>
 
-          <div className="bg-white rounded-md p-6 shadow-sm">
-            <h3 className="text-lg font-semibold mb-4">Last products</h3>
-            <ul>
-              {filteredProducts.slice(-3).map((p, idx) => (
-                <li key={idx} className="flex justify-between items-center py-2 border-b last:border-b-0">
-                  <span>{p.nom_produit} Ref{p.ref_produit}</span>
-                  <span className="font-bold">${p.prix} </span>
+          <div className="bg-white rounded-xl shadow-md p-4 sm:p-6">
+            <h3 className="text-lg font-semibold mb-4 text-[#1221ca]">Last Products</h3>
+            <ul className="divide-y divide-gray-200">
+              {filteredProducts.slice(-3).map((p, i) => (
+                <li key={i} className="py-2 flex justify-between text-sm">
+                  <span>{p.nom_produit}</span>
+                  <span className="font-bold">${p.prix}</span>
                 </li>
               ))}
             </ul>
@@ -218,29 +256,48 @@ const DashboardBuyer = () => {
         </div>
 
         {/* Calendar */}
-        <div className="bg-white rounded-md p-4 shadow-sm">
-          <h3 className="text-lg font-semibold mb-4">{currentDate.toLocaleString("default", { month: "long", year: "numeric" })}</h3>
-          <div className="flex items-center justify-between">
-            <button onClick={prevWeek} className="text-gray-500 hover:text-gray-900">&lt;</button>
-            <div className="grid grid-cols-7 text-center gap-2 w-full">
-              {weekDays.map(day => {
-                const dateStr = `${day.getFullYear()}-${String(day.getMonth()+1).padStart(2,"0")}-${String(day.getDate()).padStart(2,"0")}`
-                const isSelected = selectedDate === dateStr
-                return (
-                  <div key={dateStr} onClick={() => setSelectedDate(dateStr)}
-                    className={`cursor-pointer flex items-center justify-center w-10 h-10 rounded-full ${
-                      isSelected ? "bg-[#1221ca] text-white" : "text-gray-700 hover:bg-gray-200"
-                    }`}
-                  >
-                    {day.getDate()}
-                  </div>
-                )
-              })}
+        <div className="bg-white rounded-xl shadow-md p-4 sm:p-6">
+          <div className="flex flex-col sm:flex-row justify-between items-center mb-4 gap-2">
+            <h3 className="text-lg font-semibold text-[#1221ca]">
+              {currentDate.toLocaleString("default", { month: "long", year: "numeric" })}
+            </h3>
+            <div className="space-x-3">
+              <button
+                onClick={prevWeek}
+                className="px-3 py-1 bg-gray-100 rounded hover:bg-gray-200"
+              >
+                &lt;
+              </button>
+              <button
+                onClick={nextWeek}
+                className="px-3 py-1 bg-gray-100 rounded hover:bg-gray-200"
+              >
+                &gt;
+              </button>
             </div>
-            <button onClick={nextWeek} className="text-gray-500 hover:text-gray-900">&gt;</button>
+          </div>
+          <div className="grid grid-cols-7 gap-2 text-center">
+            {weekDays.map((day) => {
+              const dateStr = `${day.getFullYear()}-${String(day.getMonth() + 1).padStart(2, "0")}-${String(
+                day.getDate()
+              ).padStart(2, "0")}`
+              const isSelected = selectedDate === dateStr
+              return (
+                <div
+                  key={dateStr}
+                  onClick={() => setSelectedDate(dateStr)}
+                  className={`cursor-pointer flex items-center justify-center w-8 sm:w-10 h-8 sm:h-10 rounded-full ${
+                    isSelected ? "bg-[#1221ca] text-white" : "hover:bg-gray-200 text-gray-700"
+                  } transition`}
+                >
+                  {day.getDate()}
+                </div>
+              )
+            })}
           </div>
         </div>
-      </div>
+
+      </main>
     </div>
   )
 }

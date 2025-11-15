@@ -64,4 +64,9 @@ class User extends Authenticatable
     {
         return $this->hasMany(Product::class);
     }
+    public function conversations()
+{
+    return $this->belongsToMany(Conversation::class, 'conversation_user');
+}
+
 }

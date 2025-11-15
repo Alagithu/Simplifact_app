@@ -83,7 +83,7 @@ export default function ViewEstimateModal({ onClose, estimateData }: ViewEstimat
 
         {/* Content */}
         <div ref={pdfRef} className="bg-white p-8">
-          {/* Infos devis */}
+    
           <div className="flex justify-between items-start mb-6">
             <div className="flex-shrink-0 space-y-2 text-right">
               <h2 className="text-3xl font-bold text-gray-800">ESTIMATE</h2>
@@ -97,7 +97,7 @@ export default function ViewEstimateModal({ onClose, estimateData }: ViewEstimat
             </div>
           </div>
 
-          {/* Tableau produits */}
+          {/* Table*/}
           <div className="overflow-x-auto border rounded-lg">
             <div className="grid grid-cols-6 text-sm font-bold bg-gray-100 border-b">
               <div className="p-2 border-r">Réf Product</div>

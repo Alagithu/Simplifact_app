@@ -1,22 +1,14 @@
 "use client"
 import Link from "next/link";
 import { useState } from 'react'
-import { useRouter } from 'next/navigation'
+import { useRouter } from "next/navigation";
 
 const RegisterPage = () => {
-  const router = useRouter()
-
+  const router = useRouter(); 
   const categories = [
-    'Electronics',
-    'Fashion',
-    'Beauty',
-    'Home & Kitchen',
-    'Sports & Outdoors',
-    'Toys & Games',
-    'Books',
-    'Automotive',
-    'Health',
-    'Groceries'
+    'Electronics', 'Fashion', 'Beauty', 'Home & Kitchen',
+    'Sports & Outdoors', 'Toys & Games', 'Books',
+    'Automotive', 'Health', 'Groceries'
   ];
 
   const [name, setName] = useState("")
@@ -28,43 +20,23 @@ const RegisterPage = () => {
   const [role, setRole] = useState("")
   const [password, setPassword] = useState("")
   const [error, setError] = useState("")
-  const [success, setSuccess] = useState("")
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     setError("")
-    setSuccess("")
 
     try {
-      const res = await fetch("http://127.0.0.1:8000/api/register", {
+      const res = await fetch("/api/register", {
         method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          name,
-          phone,
-          cdi,
-          society,
-          email,
-          category,
-          role,
-          password
-        }),
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ name, phone, cdi, society, email, category, role, password }),
       })
 
       const data = await res.json()
-
-      if (!res.ok) {
-        setError(data.message || "Erreur lors de l'inscription")
-        return
-      }
-
-      setSuccess("Inscription réussie !")
-
-
-     
-
+      if (!res.ok) return setError(data.message || "Erreur lors de l'inscription")
+        
+      alert("User registred");
+      router.push("/")
     } catch (err) {
       setError("Erreur réseau ou serveur")
       console.error(err)
@@ -72,99 +44,55 @@ const RegisterPage = () => {
   }
 
   return (
-    <div className="flex h-screen bg-[#1221ca]">
-      <header><h1 className="text-white text-lg font-bold p-7">Logo</h1></header>
-      <section className="w-full flex flex-col justify-center items-center p-8 bg-[#1221ca] text-white">
-        <div className="w-full max-w-lg mt-10">
-          <h1 className="text-3xl font-bold mb-2 leading-snug">Create new account</h1>
-          <p className="text-sm mb-8 text-black font-bold">
-            Already have an Account?{" "}
-            <Link href="/" className="text-white hover:underline">
-              Login
-            </Link>
-          </p>
-          <form onSubmit={handleSubmit} className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            <input
-              type="text"
-              placeholder="Username"
-              className="bg-transparent border border-white rounded-md px-4 py-3 placeholder-grey focus:outline-none"
-              value={name}
-              onChange={(e) => setName(e.target.value)}
-            />
-            <input
-              type="tel"
-              placeholder="Phone"
-              className="bg-transparent border border-white rounded-md px-4 py-3 placeholder-grey focus:outline-none"
-              value={phone}
-              onChange={(e) => setPhone(e.target.value)}
-            />
-            <input
-              type="text"
-              placeholder="Identity card"
-              className="bg-transparent border border-white rounded-md px-4 py-3 placeholder-grey focus:outline-none"
-              value={cdi}
-              onChange={(e) => setCdi(e.target.value)}
-            />
-            <input
-              type="text"
-              placeholder="Company"
-              className="bg-transparent border border-white rounded-md px-4 py-3 placeholder-grey focus:outline-none"
-              value={society}
-              onChange={(e) => setSociety(e.target.value)}
-            />
-            <input
-              type="email"
-              placeholder="Email"
-              className="bg-transparent border border-white rounded-md px-4 py-3 placeholder-grey focus:outline-none"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-            />
-            <div className="relative">
-              <select
-                className="w-full bg-transparent hover:bg-[#1221ca] hover:text-white border border-white rounded-md px-4 py-3 placeholder-grey appearance-none focus:outline-none"
-                value={category}
-                onChange={(e) => setCategory(e.target.value)}
-              >
-                <option className="bg-[#1221ca] text-white">Category</option>
-                {categories.map((cat) => (
-                  <option key={cat} value={cat} className="bg-[#1221ca] text-white">{cat}</option>
-                ))}
-              </select>
-              <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-2 text-white">
-                <svg className="fill-current h-4 w-4" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20"><path d="M9.293 12.95l.707.707L15.657 8l-1.414-1.414L10 10.828 5.757 6.586 4.343 8z"/></svg>
-              </div>
-            </div>
-            <input
-              type="password"
-              placeholder="Password"
-              className="bg-transparent border border-white rounded-md px-4 py-3 placeholder-grey focus:outline-none"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-            />
-            <div className="relative">
-              <select
-                className="w-full bg-transparent hover:bg-[#1221ca] hover:text-white border border-white rounded-md px-4 py-3 placeholder-white appearance-none focus:outline-none"
-                value={role}
-                onChange={(e) => setRole(e.target.value)}
-              >
-                <option className="bg-[#1221ca] text-white">Role</option>
-                <option value="buyer" className="bg-[#1221ca] text-white">Buyer</option>
-                <option value="provider" className="bg-[#1221ca] text-white">Provider</option>
-              </select>
-              <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-2 text-white">
-                <svg className="fill-current h-4 w-4" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20"><path d="M9.293 12.95l.707.707L15.657 8l-1.414-1.414L10 10.828 5.757 6.586 4.343 8z"/></svg>
-              </div>
-            </div>
-            <button
-              type="submit"
-              className="w-full bg-black text-white font-bold border border-white py-3 mt-6 rounded-md hover:bg-white hover:text-black col-span-2"
-            >
-              Create account
-            </button>
-          </form>
-          {error && <p className="text-red-500 mt-4">{error}</p>}
-          {success && <p className="text-green-500 mt-4">{success}</p>}
+    <div className="min-h-screen flex flex-col items-center justify-center bg-[#1221ca] text-white px-4">
+      <section className="w-full max-w-2xl bg-white/10 backdrop-blur-md rounded-2xl shadow-2xl md:p-3">
+        <div className="flex items-center justify-center mb-4">
+          <img src="/logo.png" alt="Logo" className="w-36 md:w-44 drop-shadow-lg" />
         </div>
+        <h1 className="text-3xl md:text-4xl font-bold mb-3 text-center">Create New Account</h1>
+        <p className="text-center text-sm mb-8 text-gray-200">
+          Already have an account?{" "}
+          <Link href="/" className="text-white underline hover:text-gray-300">
+            Login
+          </Link>
+        </p>
+
+        <form onSubmit={handleSubmit} className="grid grid-cols-1 md:grid-cols-2 gap-5">
+          <input type="text" placeholder="Username" value={name} onChange={(e) => setName(e.target.value)}
+            className="bg-transparent border border-white/70 rounded-lg px-4 py-3 placeholder-gray-200 focus:outline-none focus:ring-2 focus:ring-white/60" />
+          <input type="tel" placeholder="Phone" value={phone} onChange={(e) => setPhone(e.target.value)}
+            className="bg-transparent border border-white/70 rounded-lg px-4 py-3 placeholder-gray-200 focus:outline-none focus:ring-2 focus:ring-white/60" />
+          <input type="text" placeholder="Identity card" value={cdi} onChange={(e) => setCdi(e.target.value)}
+            className="bg-transparent border border-white/70 rounded-lg px-4 py-3 placeholder-gray-200 focus:outline-none focus:ring-2 focus:ring-white/60" />
+          <input type="text" placeholder="Company" value={society} onChange={(e) => setSociety(e.target.value)}
+            className="bg-transparent border border-white/70 rounded-lg px-4 py-3 placeholder-gray-200 focus:outline-none focus:ring-2 focus:ring-white/60" />
+          <input type="email" placeholder="Email" value={email} onChange={(e) => setEmail(e.target.value)}
+            className="bg-transparent border border-white/70 rounded-lg px-4 py-3 placeholder-gray-200 focus:outline-none focus:ring-2 focus:ring-white/60" />
+
+          <select value={category} onChange={(e) => setCategory(e.target.value)}
+            className="w-full bg-[#1221ca]/50 border border-white/70 rounded-lg px-4 py-3 focus:outline-none focus:ring-2 focus:ring-white/60 text-white">
+            <option value="">Category</option>
+            {categories.map((cat) => (
+              <option key={cat} value={cat} className="bg-[#1221ca]">{cat}</option>
+            ))}
+          </select>
+
+          <input type="password" placeholder="Password" value={password} onChange={(e) => setPassword(e.target.value)}
+            className="bg-transparent border border-white/70 rounded-lg px-4 py-3 placeholder-gray-200 focus:outline-none focus:ring-2 focus:ring-white/60" />
+
+          <select value={role} onChange={(e) => setRole(e.target.value)}
+            className="w-full bg-[#1221ca]/50 border border-white/70 rounded-lg px-4 py-3 focus:outline-none focus:ring-2 focus:ring-white/60 text-white">
+            <option value="">Role</option>
+            <option value="buyer" className="bg-[#1221ca]">Buyer</option>
+            <option value="provider" className="bg-[#1221ca]">Provider</option>
+          </select>
+
+          <button type="submit" className="col-span-1 md:col-span-2 w-full bg-white text-[#1221ca] font-bold py-3 mt-4 rounded-lg hover:bg-gray-100 transition-all duration-200">
+            Create Account
+          </button>
+        </form>
+
+        {error && <p className="text-red-400 mt-4 text-center">{error}</p>}
       </section>
     </div>
   );

@@ -1,12 +1,5 @@
-import React from 'react';
-import LoginPage from './auth/login/page';
+import LoginPage from "./auth/login/page";
 
-
-
-const App = () => {
-  return (
-    <LoginPage />
-  );
-};
-
-export default App;
+export default function HomePage() {
+  return <LoginPage />;
+}

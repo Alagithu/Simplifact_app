@@ -14,18 +14,15 @@ class ReclamationController extends Controller
         $reclamation=Reclamation::where('id_user', $userId)->get();
         return response()->json($reclamation,200);
     }
-     public function getAll(Request $request)
+        public function getAll(Request $request)
     {
-    $reclamations = Reclamation::with(['user:id,name'])->get();
-    return response()->json($reclamations);
-    
+        $reclamations = Reclamation::with(['user:id,name'])->get();
+        return response()->json($reclamations);
     }
+
     public function store(Request $request)
     {
         $id_user=Auth::id();
-        //  $request->validate([
-        //     'id_user'=>'required|exists:users,id'
-        // ]);
         $reclamation=Reclamation::create(
            [
             'title'=>$request->title,
@@ -50,10 +47,10 @@ class ReclamationController extends Controller
         return response()->json($reclamation,200);
     }
     public function destroy (Request $request,$id){
-        $id_user=Auth::user()->id;
+       
         $reclamation=Reclamation::findOrFail($id);
         
-        if($reclamation->id_user != $id_user)
+        if(!$reclamation)
         return response()->json(['message'=>'unthorized'],403);
         
         $reclamation->delete();

@@ -1,9 +1,22 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import React, { useState, useEffect, useMemo, useCallback } from "react"
 import Link from "next/link"
 import { useRouter } from "next/navigation"
-
+import {
+  LayoutDashboard,
+  Package,
+  FileText,
+  MessageSquare,
+  FileSignature,
+  AlertCircle,
+  LogOut,
+  Menu,
+  X,
+  PlusCircle,
+  Edit,
+  Trash2,
+} from "lucide-react"
 
 type Product = {
   id: number
@@ -19,508 +32,298 @@ type User = {
   category: string
 }
 
-export default function ProductsPage() {
-  const [search, setSearch] = useState("")
+export default function BuyerProducts() {
   const [products, setProducts] = useState<Product[]>([])
-  const [selectedProduct, setSelectedProduct] = useState<Product | null>(null)
-
   const [user, setUser] = useState<User | null>(null)
-
-  const router = useRouter()
-
-  const handleLogout = async () => {
-    try {
-      const token = localStorage.getItem("token")
-
-      await fetch("http://127.0.0.1:8000/api/logout", {
-        method: "POST",
-        headers: {
-          "Authorization": `Bearer ${token}`,
-          "Content-Type": "application/json",
-        },
-      })
-
-      // Nettoyer le storage
-      localStorage.removeItem("token")
-      localStorage.removeItem("role")
-
-      // Rediriger vers la page d'accueil
-      router.push("/")
-    } catch (error) {
-      console.error("Erreur de déconnexion", error)
-    }
-  }
-
-
-
-  // Modales
-  const [isAddModalOpen, setIsAddModalOpen] = useState(false)
-  const [isEditModalOpen, setIsEditModalOpen] = useState(false)
-
-  // Champs formulaire
-  const [nom_produit, setTitle] = useState("")
-  const [ref_produit, setRef] = useState("")
+  const [search, setSearch] = useState("")
+  const [nom_produit, setName] = useState("")
   const [prix, setPrice] = useState("")
-
-  // Erreur
-  const [error, setError] = useState<string | null>(null)
-
-  // Pagination
+  const [selectedProduct, setSelectedProduct] = useState<Product | null>(null)
+  const [sidebarOpen, setSidebarOpen] = useState(false)
+  const [isModalOpen, setIsModalOpen] = useState(false)
+  const [isEditMode, setIsEditMode] = useState(false)
   const [currentPage, setCurrentPage] = useState(1)
   const productsPerPage = 6
+  const router = useRouter()
+  const token = typeof window !== "undefined" ? localStorage.getItem("token") : null
 
-  // Charger user
+  const fetchUser = useCallback(async () => {
+    if (!token) return router.push("/")
+    const res = await fetch("/api/user", { headers: { Authorization: `Bearer ${token}` } })
+    if (res.ok) setUser(await res.json())
+  }, [router, token])
+
+  const fetchProducts = useCallback(async () => {
+    if (!token) return
+    const res = await fetch("/api/product/all", { headers: { Authorization: `Bearer ${token}` } })
+    if (res.ok) setProducts(await res.json())
+  }, [token])
+
   useEffect(() => {
-    const fetchUser = async () => {
-      try {
-        const token = localStorage.getItem("token")
-        const res = await fetch("http://127.0.0.1:8000/api/user", {
-          headers: { Authorization: `Bearer ${token}` },
-        })
-        if (res.ok) {
-          const data = await res.json()
-          setUser(data)
-        }
-      } catch (error) {
-        console.error("Erreur récupération user:", error)
-      }
-    }
     fetchUser()
-  }, [])
-
-  // Charger produits
-  useEffect(() => {
-    const fetchProducts = async () => {
-      try {
-        const token = localStorage.getItem("token")
-        const res = await fetch("http://127.0.0.1:8000/api/product/all", {
-          headers: { Authorization: `Bearer ${token}` },
-        })
-        if (res.ok) {
-          const data = await res.json()
-          setProducts(data)
-        }
-      } catch (error) {
-        console.error("Erreur chargement produits:", error)
-      }
-    }
     fetchProducts()
-  }, [])
+  }, [fetchUser, fetchProducts])
 
-  // Ref unique
-  const generateRef = () => {
-    return "PROD-" + Math.random().toString(36).substring(2, 8).toUpperCase()
+  const handleLogout = async () => {
+    await fetch("/api/logout", {
+      method: "POST",
+      headers: { Authorization: `Bearer ${token}` },
+    }).catch(() => {})
+    localStorage.clear()
+    router.push("/")
   }
 
-  // Filtrage
-  const filtered = products.filter((p) =>
-    p.nom_produit.toLowerCase().includes(search.toLowerCase())
+  const handleSave = async () => {
+    if (!user || !nom_produit || !prix) return alert("Complete all fields")
+    const exists = products.some((p) => p.nom_produit.toLowerCase() === nom_produit.toLowerCase())
+    if (exists) return alert("Product already exists")
+
+    const prixNum = parseFloat(prix)
+    if (isNaN(prixNum) || prixNum <= 0) return alert("Invalid price")
+
+    const ref = "PROD-" + Math.random().toString(36).substring(2, 8).toUpperCase()
+    const res = await fetch("/api/product/add", {
+      method: "POST",
+      headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+      body: JSON.stringify({ nom_produit, ref_produit: ref, type: user.category, prix: prixNum }),
+    })
+
+    if (res.ok) {
+      const created = await res.json()
+      setProducts((prev) => [...prev, created])
+      setIsModalOpen(false)
+      setName("")
+      setPrice("")
+    }
+  }
+
+  const handleEdit = async () => {
+    if (!selectedProduct || !user) return
+    const prixNum = parseFloat(prix)
+    if (isNaN(prixNum) || prixNum <= 0) return alert("Invalid price")
+
+    const res = await fetch(`/api/product/${selectedProduct.id}`, {
+      method: "PUT",
+      headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+      body: JSON.stringify({
+        nom_produit,
+        ref_produit: selectedProduct.ref_produit,
+        type: user.category,
+        prix: prixNum,
+      }),
+    })
+
+    if (res.ok) {
+      const updated = await res.json()
+      setProducts((prev) => prev.map((p) => (p.id === updated.id ? updated : p)))
+      setIsModalOpen(false)
+      setIsEditMode(false)
+      setSelectedProduct(null)
+    }
+  }
+
+  const handleDelete = async (id: number) => {
+    const res = await fetch(`/api/product/${id}`, {
+      method: "DELETE",
+      headers: { Authorization: `Bearer ${token}` },
+    })
+    if (res.ok) setProducts((prev) => prev.filter((p) => p.id !== id))
+  }
+
+  const filteredProducts = useMemo(
+    () => products.filter((p) => p.nom_produit.toLowerCase().includes(search.toLowerCase())),
+    [products, search]
   )
 
   // Pagination
-  const indexOfLastProduct = currentPage * productsPerPage
-  const indexOfFirstProduct = indexOfLastProduct - productsPerPage
-  const currentProducts = filtered.slice(indexOfFirstProduct, indexOfLastProduct)
-  const totalPages = Math.ceil(filtered.length / productsPerPage)
+  const totalPages = Math.ceil(filteredProducts.length / productsPerPage)
+  const indexOfLast = currentPage * productsPerPage
+  const indexOfFirst = indexOfLast - productsPerPage
+  const currentProducts = filteredProducts.slice(indexOfFirst, indexOfLast)
 
-  // Ajouter produit
-  const handleSaveProduct = async () => {
-    try {
-      if (!user) return
-
-      // Vérifier unicité nom produit
-      const exists = products.some(
-        (p) => p.nom_produit.toLowerCase() === nom_produit.toLowerCase()
-      )
-      if (exists) {
-        alert("Product name exist")
-        return
-      }
-
-      const prixNum = parseFloat(prix)
-      if (isNaN(prixNum) || prixNum <= 0) {
-        alert("Price incorrect <0")
-        return
-      }
-
-      const token = localStorage.getItem("token")
-      const newRef = generateRef()
-      const productType = user.category
-
-      const res = await fetch("http://127.0.0.1:8000/api/product/add", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`,
-        },
-        body: JSON.stringify({
-          nom_produit,
-          ref_produit: newRef,
-          type: productType,
-          prix: prixNum,
-        }),
-      })
-
-      if (res.ok) {
-        const created = await res.json()
-        setProducts([...products, created])
-        setIsAddModalOpen(false)
-        resetForm()
-      }
-    } catch (error) {
-      console.error("Erreur ajout produit:", error)
-    }
-  }
-
-  // Supprimer produit
-  const handleDeleteProduct = async (id: number) => {
-    try {
-      const token = localStorage.getItem("token")
-      const res = await fetch(`http://127.0.0.1:8000/api/product/${id}`, {
-        method: "DELETE",
-        headers: { Authorization: `Bearer ${token}` },
-      })
-
-      if (res.ok) {
-        setProducts(products.filter((p) => p.id !== id))
-      }
-    } catch (error) {
-      console.error("Erreur suppression produit:", error)
-    }
-  }
-
-  // Editer produit
-  const handleEditProduct = (product: Product) => {
-    setSelectedProduct(product)
-    setTitle(product.nom_produit)
-    setRef(product.ref_produit)
-    setPrice(product.prix.toString())
-    setIsEditModalOpen(true)
-  }
-
-  // Update produit
-  const handleUpdateProduct = async () => {
-    if (!selectedProduct || !user) return
-    try {
-      const prixNum = parseFloat(prix)
-      if (isNaN(prixNum) || prixNum <= 0) {
-        setError("Price incorrect <0")
-        return
-      }
-
-      // Vérifier unicité nom (sauf si c'est le même produit)
-      const exists = products.some(
-        (p) =>
-          p.nom_produit.toLowerCase() === nom_produit.toLowerCase() &&
-          p.id !== selectedProduct.id
-      )
-      if (exists) {
-        alert("Product name exist")
-        return
-      }
-
-      const token = localStorage.getItem("token")
-      const productType = user.category
-
-      const res = await fetch(
-        `http://127.0.0.1:8000/api/product/${selectedProduct.id}`,
-        {
-          method: "PUT",
-          headers: {
-            "Content-Type": "application/json",
-            Authorization: `Bearer ${token}`,
-          },
-          body: JSON.stringify({
-            nom_produit,
-            ref_produit,
-            type: productType,
-            prix: prixNum,
-          }),
-        }
-      )
-
-      if (res.ok) {
-        const updated = await res.json()
-        setProducts(products.map((p) => (p.id === updated.id ? updated : p)))
-        setIsEditModalOpen(false)
-        setSelectedProduct(null)
-        resetForm()
-      }
-    } catch (error) {
-      console.error("Erreur modification produit:", error)
-    }
-  }
-
-  // Reset form
-  const resetForm = () => {
-    setTitle("")
-    setRef("")
-    setPrice("")
-    setError(null)
-  }
+  const handleNext = () => setCurrentPage((prev) => Math.min(prev + 1, totalPages))
+  const handlePrev = () => setCurrentPage((prev) => Math.max(prev - 1, 1))
 
   return (
-    <div className="flex min-h-screen bg-gray-100">
+    <div className="flex h-screen bg-gradient-to-br from-gray-50 to-gray-100 text-gray-900 font-inter">
       {/* Sidebar */}
-      <div className="w-64 bg-black text-white p-6 flex flex-col justify-between">
+      <aside
+        className={`fixed md:static top-0 left-0 h-full w-64 bg-[#0f172a] text-gray-100 flex flex-col justify-between p-6 shadow-lg transform transition-transform duration-300 z-50 ${
+          sidebarOpen ? "translate-x-0" : "-translate-x-full md:translate-x-0"
+        }`}
+      >
         <div>
-          <h1 className="text-3xl font-bold mb-10">Logo</h1>
-          <nav>
-            <ul>
-              <li className="mb-4">
-                <Link href="/dashboards/buyer" className="flex items-center p-3 rounded-md hover:bg-gray-800">
-                  <svg className="w-5 h-5 mr-3" fill="currentColor" viewBox="0 0 20 20">
-                    <path d="M10 2a8 8 0 100 16 8 8 0 000-16zM8 11.5a1.5 1.5 0 113 0v4a1.5 1.5 0 11-3 0v-4zM10 8a1.5 1.5 0 11-3 0 1.5 1.5 0 013 0z" clipRule="evenodd" fillRule="evenodd"></path>
-                  </svg>
-                  Dashboard
-                </Link>
-              </li>
-              <li className="mb-4">
-                <Link href="#" className="flex items-center p-3 rounded-md hover:bg-gray-800">
-                  <svg className="w-5 h-5 mr-3" fill="currentColor" viewBox="0 0 20 20">
-                    <path d="M2.003 5.884L10 9.882l7.997-3.998A2 2 0 0016 4H4a2 2 0 00-1.997 1.884zM18 8.118l-8 4-8-4V14a2 2 0 002 2h12a2 2 0 002-2V8.118z"></path>
-                  </svg>
-                  Messages
-                </Link>
-              </li>
-              <li className="mb-4">
-                <Link href="/dashboards/buyer/pages/invoices" className="flex items-center p-3 rounded-md hover:bg-gray-800"> 
-                  <svg className="w-5 h-5 mr-3" fill="currentColor" viewBox="0 0 20 20">
-                    <path d="M10 2a8 8 0 100 16 8 8 0 000-16zM9 11V8a1 1 0 012 0v3a1 1 10 11-2 0zM10 15a1 1 0 110-2 1 1 0 010 2z"></path>
-                  </svg>
-                    Invoices
-                </Link> 
-              </li>
-              <li className="mb-4">
-                <Link href="/dashboards/buyer/pages/estimates" className="flex items-center p-3 rounded-md hover:bg-gray-800 ">
-                  <svg className="w-5 h-5 mr-3" fill="currentColor" viewBox="0 0 20 20">
-                    <path d="M13 6a3 3 0 11-6 0 3 3 0 016 0zM15 8.114a1 1 0 011-1h2.5L12 1.5 3.5 7.114H6a1 1 0 011 1v7.5A1.5 1.5 0 008.5 17h3a1.5 1.5 0 001.5-1.5V8.114z"></path>
-                  </svg> 
-                  Estimates
-                </Link>
-              </li>
-              <li className="mb-4">
-                <Link href="#" className="flex items-center p-3 rounded-md bg-[#1221ca]">
-                  <svg className="w-5 h-5 mr-3" fill="currentColor" viewBox="0 0 20 20">
-                    <path d="M10 2a8 8 0 100 16 8 8 0 000-16zM9 11a1 1 0 012 0v2a1 1 0 11-2 0v-2z"></path>
-                  </svg> 
-                  Products
-                </Link>
-              </li>
-              <li className="mb-4">
-                <Link href="/dashboards/buyer/pages/claims" className="flex items-center p-3 rounded-md hover:bg-gray-800">
-                  <svg className="w-5 h-5 mr-3" fill="currentColor" viewBox="0 0 20 20">
-                    <path d="M17.707 2.293a1 1 0 00-1.414 0L12 6.586 7.707 2.293a1 1 0 10-1.414 1.414L10.586 8 6.293 12.293a1 1 0 101.414 1.414L12 9.414l4.293 4.293a1 1 0 001.414-1.414L13.414 8l4.293-4.293a1 1 0 000-1.414z"></path>
-                  </svg>
-                  Claims
-                </Link>
-              </li>
-            </ul>
+          <div className="flex items-center justify-between mb-8">
+            <div className="flex items-center space-x-3">
+              <img src="/logo.png" alt="Logo" width={45} height={45} className="rounded-full" />
+              <h1 className="text-lg font-semibold">Buyer</h1>
+            </div>
+            <button onClick={() => setSidebarOpen(false)} className="md:hidden text-gray-400 hover:text-white">
+              <X />
+            </button>
+          </div>
+
+          <nav className="space-y-3">
+            <Link href="/dashboards/buyer" className="flex items-center space-x-3 p-3 rounded-lg hover:bg-gray-800 transition">
+              <LayoutDashboard size={18} /> <span>Dashboard</span>
+            </Link>
+            <Link href="/dashboards/buyer/pages/messages" className="flex items-center space-x-3 p-3 rounded-lg hover:bg-gray-800 transition">
+              <MessageSquare size={18} /> <span>Messages</span>
+            </Link>
+            <Link href="/dashboards/buyer/pages/invoices" className="flex items-center space-x-3 p-3 rounded-lg hover:bg-gray-800 transition">
+              <FileText size={18} /> <span>Invoices</span>
+            </Link>
+            <Link href="/dashboards/buyer/pages/estimates" className="flex items-center space-x-3 p-3 rounded-lg hover:bg-gray-800 transition">
+              <FileSignature size={18} /> <span>Estimates</span>
+            </Link>
+            <Link href="#" className="flex items-center space-x-3 p-3 rounded-lg bg-[#1221ca]">
+              <Package size={18} /> <span>Products</span>
+            </Link>
+            <Link href="/dashboards/buyer/pages/claims" className="flex items-center space-x-3 p-3 rounded-lg hover:bg-gray-800 transition">
+              <AlertCircle size={18} /> <span>Claims</span>
+            </Link>
           </nav>
         </div>
-        <div className="mt-auto">
-          <button
-            onClick={handleLogout}
-            className="flex items-center p-3 rounded-md hover:bg-gray-800 w-full text-left"
-          >
-            <svg
-              className="w-5 h-5 mr-3"
-              fill="currentColor"
-              viewBox="0 0 20 20"
-            >
-              <path d="M10 2a8 8 0 100 16 8 8 0 000-16zM8 11a1 1 0 112 0v2a1 1 0 11-2 0v-2zM10 7a1 1 0 110 2 1 1 0 010-2z"></path>
-            </svg>
-            Logout
+
+        <button onClick={handleLogout} className="flex items-center space-x-3 p-3 rounded-lg hover:bg-gray-800 transition">
+          <LogOut size={18} /> <span>Logout</span>
+        </button>
+      </aside>
+
+      {sidebarOpen && (
+        <div className="fixed inset-0 bg-black bg-opacity-40 z-40 md:hidden" onClick={() => setSidebarOpen(false)} />
+      )}
+
+      {/* Main */}
+      <main className="flex-1 p-4 sm:p-6 md:p-8 overflow-y-auto w-full">
+        <div className="flex items-center justify-between mb-6 md:hidden">
+          <button onClick={() => setSidebarOpen(true)}>
+            <Menu size={24} className="text-[#1221ca]" />
           </button>
-        </div>
-      </div>
-
-
-      {/* Content */}
-      <main className="flex-1 p-8">
-        <div className="bg-[#1221ca] text-white p-4 rounded mb-6">
-          <h2 className="text-xl font-bold">Buyer</h2>
+          <h2 className="text-xl font-semibold text-[#1221ca]">Products</h2>
         </div>
 
-        {/* Search */}
-        <div className="flex justify-between items-center mb-4">
-          <h3 className="text-lg font-bold">Products</h3>
+        <h2 className="hidden md:block text-2xl font-semibold mb-6 text-[#1221ca]">
+          Products Management
+        </h2>
+
+        {/* Search + Add */}
+        <div className="flex flex-col sm:flex-row justify-between items-center gap-3 mb-6">
           <input
             type="text"
-            placeholder="Search product"
+            placeholder="Search products..."
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            className="border p-1 rounded text-black"
+            className="border border-gray-300 rounded-lg px-3 py-2 w-full sm:w-1/3"
           />
+          <button
+            onClick={() => {
+              setIsModalOpen(true)
+              setIsEditMode(false)
+              setName("")
+              setPrice("")
+            }}
+            className="flex items-center space-x-2 bg-[#1221ca] text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition"
+          >
+            <PlusCircle size={18} /> <span>Add Product</span>
+          </button>
         </div>
-
-        {/* Error */}
-        {error && (
-          <p className="text-red-600 font-bold mb-4 text-center">{error}</p>
-        )}
 
         {/* Product Grid */}
-        <div className="grid grid-cols-3 gap-2 mb-1">
-          {currentProducts.length > 0 ? (
-            currentProducts.map((p) => (
-              <div
-                key={p.id}
-                className="bg-[#1221ca] text-white rounded-lg p-4 flex flex-col justify-between"
-              >
-                <div>
-                  <h4 className="font-bold text-center">{p.nom_produit}</h4>
-                  <p>Ref: {p.ref_produit}</p>
-                  <p>Type: {p.type}</p>
-                  <p className="text-center">${p.prix}</p>
-                </div>
-                <div className="flex justify-between mt-3">
-                  <button
-                    onClick={() => handleEditProduct(p)}
-                    className="bg-yellow-400 text-black p-1 rounded"
-                  >
-                    Edit
-                  </button>
-                  <button
-                    onClick={() => handleDeleteProduct(p.id)}
-                    className="bg-red-600 text-white p-1 rounded"
-                  >
-                    Delete
-                  </button>
-                </div>
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+          {currentProducts.map((p) => (
+            <div key={p.id} className="bg-white shadow-md rounded-xl p-4 flex flex-col justify-between">
+              <div>
+                <h4 className="font-bold text-[#1221ca] text-center">{p.nom_produit}</h4>
+                <p className="text-sm text-gray-600">Ref: {p.ref_produit}</p>
+                <p className="text-sm text-gray-600">Type: {p.type}</p>
+                <p className="text-lg font-bold text-center mt-2">${p.prix}</p>
               </div>
-            ))
-          ) : (
-            <p className="col-span-3 text-center text-gray-600">
-              No products found.
-            </p>
-          )}
+              <div className="flex justify-center gap-2 mt-3">
+                <button
+                  onClick={() => {
+                    setIsModalOpen(true)
+                    setIsEditMode(true)
+                    setSelectedProduct(p)
+                    setName(p.nom_produit)
+                    setPrice(p.prix.toString())
+                  }}
+                  className="p-2 bg-yellow-400 rounded hover:bg-yellow-500"
+                >
+                  <Edit size={16} />
+                </button>
+                <button
+                  onClick={() => handleDelete(p.id)}
+                  className="p-2 bg-red-500 text-white rounded hover:bg-red-600"
+                >
+                  <Trash2 size={16} />
+                </button>
+              </div>
+            </div>
+          ))}
         </div>
 
+        {currentProducts.length === 0 && (
+          <p className="text-center text-gray-500 mt-6">No products found.</p>
+        )}
+
         {/* Pagination */}
-        <div className="flex justify-center gap-2 mb-1">
+        <div className="flex justify-center items-center gap-4 mt-6">
           <button
-            onClick={() => setCurrentPage((prev) => Math.max(prev - 1, 1))}
+            onClick={handlePrev}
             disabled={currentPage === 1}
-            className="px-4 py-1 border border-black rounded disabled:opacity-50"
+            className="px-4 py-2 bg-gray-200 rounded hover:bg-gray-300 disabled:opacity-50 transition"
           >
             Prev
           </button>
-          <span className="self-center font-bold">
-            Page {currentPage} / {totalPages}
-          </span>
+          <span className="font-semibold">{currentPage} / {totalPages}</span>
           <button
-            onClick={() =>
-              setCurrentPage((prev) => Math.min(prev + 1, totalPages))
-            }
+            onClick={handleNext}
             disabled={currentPage === totalPages}
-            className="px-4 py-1 border border-black rounded disabled:opacity-50"
+            className="px-4 py-2 bg-gray-200 rounded hover:bg-gray-300 disabled:opacity-50 transition"
           >
             Next
           </button>
         </div>
-
-        {/* Add Product */}
-        <div className="flex justify-end">
-          <button
-            onClick={() => setIsAddModalOpen(true)}
-            className="px-4 py-2 border rounded text-[#1221ca] border-black font-bold hover:bg-[#1221ca] hover:text-white"
-          >
-            Add Product
-          </button>
-        </div>
       </main>
 
-      {/* Modales */}
-      {isAddModalOpen && (
-        <Modal
-          title="Add Product"
-          onCancel={() => setIsAddModalOpen(false)}
-          onSave={handleSaveProduct}
-          name={nom_produit}
-          setName={setTitle}
-          refProd={ref_produit}
-          setRefProd={setRef}
-          price={prix}
-          setPrice={setPrice}
-        />
-      )}
+      {/* Modal */}
+      {isModalOpen && (
+        <div className="fixed inset-0 bg-black bg-opacity-40 flex justify-center items-center z-50">
+          <div className="bg-white rounded-xl shadow-lg p-6 w-96">
+            <h3 className="text-xl font-semibold mb-4 text-[#1221ca]">
+              {isEditMode ? "Edit Product" : "Add Product"}
+            </h3>
 
-      {isEditModalOpen && selectedProduct && (
-        <Modal
-          title="Edit Product"
-          onCancel={() => setIsEditModalOpen(false)}
-          onSave={handleUpdateProduct}
-          name={nom_produit}
-          setName={setTitle}
-          refProd={ref_produit}
-          setRefProd={setRef}
-          price={prix}
-          setPrice={setPrice}
-        />
-      )}
-    </div>
-  )
-}
+            <input
+              type="text"
+              placeholder="Product name"
+              value={nom_produit}
+              onChange={(e) => setName(e.target.value)}
+              className="w-full border border-gray-300 rounded-lg p-2 mb-3"
+            />
+            <input
+              type="number"
+              placeholder="Price"
+              value={prix}
+              onChange={(e) => setPrice(e.target.value)}
+              className="w-full border border-gray-300 rounded-lg p-2 mb-4"
+            />
 
-// Modal
-function Modal({
-  title,
-  onCancel,
-  onSave,
-  name,
-  setName,
-  refProd,
-  setRefProd,
-  price,
-  setPrice,
-}: {
-  title: string
-  onCancel: () => void
-  onSave: () => void
-  name: string
-  setName: (v: string) => void
-  refProd: string
-  setRefProd: (v: string) => void
-  price: string
-  setPrice: (v: string) => void
-}) {
-  return (
-    <div className="fixed inset-0 flex items-center justify-center bg-black bg-opacity-50">
-      <div className="bg-white p-6 rounded-lg w-96 shadow-lg">
-        <h2 className="text-xl font-bold mb-4">{title}</h2>
-
-        <input
-          type="text"
-          placeholder="Product Name"
-          value={name}
-          onChange={(e) => setName(e.target.value)}
-          className="w-full border rounded p-2 mb-3"
-        />
-
-        <input
-          type="number"
-          placeholder="Price "
-          min="1"
-          value={price}
-          onChange={(e) => setPrice(e.target.value)}
-          className="w-full border rounded p-2 mb-3"
-        />
-
-        <div className="flex justify-end gap-3">
-          <button
-            onClick={onCancel}
-            className="px-4 py-2 border rounded hover:bg-gray-200"
-          >
-            Cancel
-          </button>
-          <button
-            onClick={onSave}
-            className="px-4 py-2 bg-green-500 text-white rounded hover:bg-green-600"
-          >
-            Save
-          </button>
+            <div className="flex justify-end gap-3">
+              <button onClick={() => setIsModalOpen(false)} className="px-4 py-2 rounded-lg bg-gray-200 hover:bg-gray-300">
+                Cancel
+              </button>
+              <button
+                onClick={isEditMode ? handleEdit : handleSave}
+                className="px-4 py-2 rounded-lg bg-[#1221ca] text-white hover:bg-blue-700"
+              >
+                Save
+              </button>
+            </div>
+          </div>
         </div>
-      </div>
+      )}
     </div>
   )
 }

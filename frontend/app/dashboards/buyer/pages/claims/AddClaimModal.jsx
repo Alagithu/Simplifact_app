@@ -8,7 +8,6 @@ export default function AddClaimModal({ onClose, onSave }) {
     description: "",
   });
 
-  // Gestion des inputs
   const handleClaimChange = (e) => {
     setClaimData({ ...claimData, [e.target.name]: e.target.value });
   };
@@ -23,7 +22,7 @@ export default function AddClaimModal({ onClose, onSave }) {
     }
 
     try {
-      const res = await fetch("http://127.0.0.1:8000/api/reclamation/add", {
+      const res = await fetch("/api/reclamation/add", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",

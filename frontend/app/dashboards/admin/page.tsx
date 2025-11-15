@@ -1,98 +1,118 @@
 "use client"
 
-import Link from 'next/link'
-import React, { useState, useEffect } from 'react'
+import Link from "next/link"
+import React, { useState, useEffect, useMemo } from "react"
 import { useRouter } from "next/navigation"
+import { BarChart3, Users, Package, AlertCircle, LogOut, LayoutDashboard, Menu } from "lucide-react"
+
 const DashboardAdmin = () => {
   const [products, setProducts] = useState<any[]>([])
   const [factures, setFactures] = useState<any[]>([])
   const [users, setUsers] = useState<any[]>([])
   const [claims, setClaims] = useState<any[]>([])
-
-  const [filteredProducts, setFilteredProducts] = useState<any[]>([])
-  const [filteredFactures, setFilteredFactures] = useState<any[]>([])
-  const [filteredUsers, setFilteredUsers] = useState<any[]>([])
-  const [filteredClaims, setFilteredClaims] = useState<any[]>([])
-
-  const [totalFactures, setTotalFactures] = useState<number>(0)
   const [selectedDate, setSelectedDate] = useState<string | null>(null)
-  const [currentDate, setCurrentDate] = useState(new Date(2025, 8, 1))
+  const [currentDate, setCurrentDate] = useState(new Date()) // mois et année courants
+  const [sidebarOpen, setSidebarOpen] = useState(false)
 
-  const token = typeof window !== "undefined" ? localStorage.getItem("token") : null
-  
   const router = useRouter()
-    const handleLogout = async () => {
-    try {
-      const token = localStorage.getItem("token")
+  const token = typeof window !== "undefined" ? localStorage.getItem("token") : null
 
-      await fetch("http://127.0.0.1:8000/api/logout", {
+  const handleLogout = async () => {
+    try {
+      if (!token) {
+        router.push("/")
+        return
+      }
+
+      await fetch("/api/logout", {
         method: "POST",
         headers: {
-          "Authorization": `Bearer ${token}`,
+          Authorization: `Bearer ${token}`,
           "Content-Type": "application/json",
         },
-      })
+      }).catch(() => {})
 
-      // Nettoyer le storage
-      localStorage.removeItem("token")
-      localStorage.removeItem("role")
-
-      // Rediriger vers la page d'accueil
+      localStorage.clear()
       router.push("/")
     } catch (error) {
-      console.error("Erreur de déconnexion", error)
+      console.error("Erreur de déconnexion :", error)
     }
   }
 
-  // Fetch data
   useEffect(() => {
-    const fetchData = async () => {
-      if (!token) return
+    if (!token) return
 
+    const fetchDashboard = async () => {
       try {
-        const [resProducts, resFactures, resUsers, resClaims] = await Promise.all([
-          fetch("http://127.0.0.1:8000/api/product/all", { headers: { Authorization: `Bearer ${token}` } }),
-          fetch("http://127.0.0.1:8000/api/facture/all", { headers: { Authorization: `Bearer ${token}` } }),
-          fetch("http://127.0.0.1:8000/api/users/all", { headers: { Authorization: `Bearer ${token}` } }),
-          fetch("http://127.0.0.1:8000/api/reclamation/all", { headers: { Authorization: `Bearer ${token}` } }),
-        ])
+        const res = await fetch("/api/admin/dashboard", {
+          headers: { Authorization: `Bearer ${token}` },
+          cache: "no-cache",
+        })
 
-        setProducts(await resProducts.json())
-        setFactures(await resFactures.json())
-        setUsers(await resUsers.json())
-        setClaims(await resClaims.json())
+        if (!res.ok) throw new Error("Erreur serveur")
+
+        const data = await res.json()
+        setProducts(data.products || [])
+        setFactures(data.factures || [])
+        setUsers(data.users || [])
+        setClaims(data.claims || [])
       } catch (err) {
-        console.error("Erreur lors du fetch :", err)
+        console.error("Erreur lors du fetch dashboard:", err)
       }
     }
 
-    fetchData()
+    fetchDashboard()
   }, [token])
 
-  // Filter by date
-  useEffect(() => {
-    const filterByDate = (list: any[]) => {
-      if (!selectedDate) return list
-      const selected = new Date(selectedDate)
-      return list.filter(i => i.created_at && new Date(i.created_at) <= selected)
-    }
+  // Filtres par date
+  const filteredProducts = useMemo(() => {
+    if (!selectedDate) return products
+    const d = new Date(selectedDate)
+    return products.filter((p) => p.created_at && new Date(p.created_at) <= d)
+  }, [selectedDate, products])
 
-    const fProducts = filterByDate(products)
-    const fFactures = filterByDate(factures)
-    const fUsers = filterByDate(users)
-    const fClaims = filterByDate(claims)
+  const filteredFactures = useMemo(() => {
+    if (!selectedDate) return factures
+    const d = new Date(selectedDate)
+    return factures.filter((f) => f.created_at && new Date(f.created_at) <= d)
+  }, [selectedDate, factures])
 
-    setFilteredProducts(fProducts)
-    setFilteredFactures(fFactures)
-    setFilteredUsers(fUsers)
-    setFilteredClaims(fClaims)
+  const filteredUsers = useMemo(() => {
+    if (!selectedDate) return users
+    const d = new Date(selectedDate)
+    return users.filter(
+      (u) => u.created_at && new Date(u.created_at) <= d && u.role?.toLowerCase() !== "admin"
+    )
+  }, [selectedDate, users])
 
-    setTotalFactures(fFactures.reduce((acc, f) => acc + (f.montant_ttc || 0), 0))
-  }, [selectedDate, products, factures, users, claims])
+  const filteredClaims = useMemo(() => {
+    if (!selectedDate) return claims
+    const d = new Date(selectedDate)
+    return claims.filter((c) => c.created_at && new Date(c.created_at) <= d)
+  }, [selectedDate, claims])
 
-  const providers = filteredUsers.filter(u => u.role?.toLowerCase() === "provider")
-  const buyers = filteredUsers.filter(u => u.role?.toLowerCase() === "buyer")
+  const totalFactures = useMemo(
+    () => filteredFactures.reduce((acc, f) => acc + (f.montant_ttc || 0), 0),
+    [filteredFactures]
+  )
 
+  const totalUsers = useMemo(
+  () => filteredUsers.filter(u => u.role?.toLowerCase() !== "admin").length,
+  [filteredUsers]
+)
+
+
+  const providers = useMemo(
+    () => filteredUsers.filter((u) => u.role?.toLowerCase() === "provider"),
+    [filteredUsers]
+  )
+
+  const buyers = useMemo(
+    () => filteredUsers.filter((u) => u.role?.toLowerCase() === "buyer"),
+    [filteredUsers]
+  )
+
+  // Gestion du calendrier
   const getWeekDays = (date: Date) => {
     const days: Date[] = []
     const start = new Date(date)
@@ -104,103 +124,172 @@ const DashboardAdmin = () => {
     return days
   }
 
-  const weekDays = getWeekDays(currentDate)
-  const prevWeek = () => setCurrentDate(prev => { const d = new Date(prev); d.setDate(d.getDate() - 7); return d })
-  const nextWeek = () => setCurrentDate(prev => { const d = new Date(prev); d.setDate(d.getDate() + 7); return d })
+  const weekDays = useMemo(() => getWeekDays(currentDate), [currentDate])
+  const prevWeek = () =>
+    setCurrentDate((prev) => new Date(prev.getFullYear(), prev.getMonth(), prev.getDate() - 7))
+  const nextWeek = () =>
+    setCurrentDate((prev) => new Date(prev.getFullYear(), prev.getMonth(), prev.getDate() + 7))
 
   return (
-    <div className="flex h-screen bg-gray-100">
+    <div className="flex h-screen bg-gradient-to-br from-gray-50 to-gray-100 text-gray-900 font-inter">
       {/* Sidebar */}
-      <div className="w-64 bg-black text-white p-6 flex flex-col justify-between">
+      <aside
+        className={`fixed md:static top-0 left-0 h-full w-64 bg-[#0f172a] text-gray-100 flex flex-col justify-between p-6 shadow-lg transform transition-transform duration-300 z-50 ${
+          sidebarOpen ? "translate-x-0" : "-translate-x-full md:translate-x-0"
+        }`}
+      >
         <div>
-          <h1 className="text-3xl font-bold mb-10">Logo</h1>
-          <nav>
-            <ul>
-              <li className="mb-4">
-                <Link href="#" className="flex items-center p-3 rounded-md bg-[#1221ca]">
-                  <svg className="w-5 h-5 mr-3" fill="currentColor" viewBox="0 0 20 20">
-                    <path d="M10 2a8 8 0 100 16 8 8 0 000-16zM8 11.5a1.5 1.5 0 113 0v4a1.5 1.5 0 11-3 0v-4zM10 8a1.5 1.5 0 11-3 0 1.5 1.5 0 013 0z" clipRule="evenodd" fillRule="evenodd"></path>
-                  </svg>
-                    Dashboard
-                </Link>
-                </li>
-              <li className="mb-4">
-                <Link href="/dashboards/admin/user" className="flex items-center p-3 rounded-md hover:bg-gray-800">
-                <svg className="w-5 h-5 mr-3" fill="currentColor" viewBox="0 0 20 20">
-                  <path d="M13 7a3 3 0 11-6 0 3 3 0 016 0zM4 15a4 4 0 014-4h4a4 4 0 014 4v1H4v-1z" />
-                </svg>
-                    Users
-                </Link>
-              </li>
-              <li className="mb-4">
-                <Link href="/dashboards/admin/product" className="flex items-center p-3 rounded-md hover:bg-gray-800">
-                  <svg className="w-5 h-5 mr-3" fill="currentColor" viewBox="0 0 20 20">
-                    <path d="M10 2a8 8 0 100 16 8 8 0 000-16zM9 11a1 1 0 012 0v2a1 1 0 11-2 0v-2z"></path>
-                  </svg> 
-                    Products
-                </Link>
-              </li>
-              <li className="mb-4">
-                <Link href="/dashboards/admin/claims" className="flex items-center p-3 rounded-md hover:bg-gray-800">
-                  <svg className="w-5 h-5 mr-3" fill="currentColor" viewBox="0 0 20 20">
-                    <path d="M17.707 2.293a1 1 0 00-1.414 0L12 6.586 7.707 2.293a1 1 0 10-1.414 1.414L10.586 8 6.293 12.293a1 1 0 101.414 1.414L12 9.414l4.293 4.293a1 1 0 001.414-1.414L13.414 8l4.293-4.293a1 1 0 000-1.414z"></path>
-                  </svg> 
-                    Claims
-                </Link>
-              </li>
-            </ul>
+          <div className="flex items-center justify-between mb-8 space-x-3">
+            <div className="flex items-center space-x-3">
+              <img src="/logo.png" alt="Logo" width={45} height={45} className="rounded-full" />
+              <h1 className="text-lg font-semibold">Admin</h1>
+            </div>
+            <button
+              className="md:hidden text-gray-400 hover:text-white"
+              onClick={() => setSidebarOpen(false)}
+            >
+              ✕
+            </button>
+          </div>
+
+          <nav className="space-y-3">
+            <Link
+              href="#"
+              className="flex items-center space-x-3 p-3 rounded-lg bg-[#1221ca] hover:bg-blue-700 transition"
+            >
+              <LayoutDashboard size={18} /> <span>Dashboard</span>
+            </Link>
+            <Link
+              href="/dashboards/admin/user"
+              className="flex items-center space-x-3 p-3 rounded-lg hover:bg-gray-800 transition"
+            >
+              <Users size={18} /> <span>Users</span>
+            </Link>
+            <Link
+              href="/dashboards/admin/product"
+              className="flex items-center space-x-3 p-3 rounded-lg hover:bg-gray-800 transition"
+            >
+              <Package size={18} /> <span>Products</span>
+            </Link>
+            <Link
+              href="/dashboards/admin/claims"
+              className="flex items-center space-x-3 p-3 rounded-lg hover:bg-gray-800 transition"
+            >
+              <AlertCircle size={18} /> <span>Claims</span>
+            </Link>
           </nav>
         </div>
-        <div className="mt-auto">
-              <button onClick={handleLogout} className="flex items-center p-3 rounded-md hover:bg-gray-800 w-full text-left"> 
-                  <svg className="w-5 h-5 mr-3" fill="currentColor" viewBox="0 0 20 20">
-                  <path d="M10 2a8 8 0 100 16 8 8 0 000-16zM8 11a1 1 0 112 0v2a1 1 0 11-2 0v-2zM10 7a1 1 0 110 2 1 1 0 010-2z"></path>
-                  </svg> 
-                    Logout 
-              </button> 
-          </div>
-      </div>
 
-      {/* Main Content */}
-      <div className="flex-1 p-8 overflow-y-auto">
-        <div className="bg-[#1221ca] text-white p-4 rounded-md mb-6"><h2 className="text-xl font-semibold">Admin</h2></div>
+        <button
+          onClick={handleLogout}
+          className="flex items-center space-x-3 p-3 rounded-lg hover:bg-gray-800 transition"
+        >
+          <LogOut size={18} /> <span>Logout</span>
+        </button>
+      </aside>
 
-        {/* Info Cards */}
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-6">
-          <div className="bg-white rounded-md p-6 text-center shadow-sm"><p className="text-sm text-gray-500">Products</p><h3 className="text-3xl font-bold">{filteredProducts.length}</h3></div>
-          <div className="bg-white rounded-md p-6 text-center shadow-sm"><p className="text-sm text-gray-500">Users</p><h3 className="text-3xl font-bold">{filteredUsers.length-1}</h3></div>
-          <div className="bg-white rounded-md p-6 text-center shadow-sm"><p className="text-sm text-gray-500">Revenue</p><h3 className="text-3xl font-bold">${totalFactures}</h3></div>
-          <div className="bg-white rounded-md p-6 text-center shadow-sm"><p className="text-sm text-gray-500">Claims</p><h3 className="text-3xl font-bold">{filteredClaims.length}</h3></div>
+      {sidebarOpen && (
+        <div
+          className="fixed inset-0 bg-black bg-opacity-40 z-40 md:hidden"
+          onClick={() => setSidebarOpen(false)}
+        />
+      )}
+
+      {/* Main*/}
+      <main className="flex-1 p-4 sm:p-6 md:p-8 overflow-y-auto w-full">
+        <div className="flex items-center justify-between mb-6 md:hidden">
+          <button onClick={() => setSidebarOpen(true)}>
+            <Menu size={24} className="text-[#1221ca]" />
+          </button>
+          <h2 className="text-xl font-semibold text-[#1221ca]">Admin Dashboard</h2>
+        </div>
+
+        <h2 className="hidden md:block text-2xl font-semibold mb-6 text-[#1221ca]">
+          Welcome, Admin
+        </h2>
+
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6 mb-8">
+          {[
+            { title: "Products", value: filteredProducts.length, icon: <Package />, color: "bg-blue-100 text-blue-700" },
+            { title: "Users", value: totalUsers, icon: <Users />, color: "bg-green-100 text-green-700" },
+            { title: "Revenue", value: `$${totalFactures}`, icon: <BarChart3 />, color: "bg-yellow-100 text-yellow-700" },
+            { title: "Claims", value: filteredClaims.length, icon: <AlertCircle />, color: "bg-red-100 text-red-700" },
+          ].map((stat, i) => (
+            <div key={i} className="bg-white rounded-xl shadow-md p-4 sm:p-6 flex items-center space-x-4">
+              <div className={`p-3 rounded-full ${stat.color}`}>{stat.icon}</div>
+              <div>
+                <p className="text-sm text-gray-500">{stat.title}</p>
+                <h3 className="text-xl sm:text-2xl font-bold">{stat.value}</h3>
+              </div>
+            </div>
+          ))}
         </div>
 
         {/* Providers & Buyers */}
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
-          <div className="bg-white rounded-md p-6 shadow-sm">
-            <h3 className="text-lg font-semibold mb-4">Providers ({providers.length})</h3>
-            <ul>{providers.slice(-3).map((u, idx) => <li key={idx} className="flex justify-between py-2 border-b last:border-b-0"><span>{u.name}</span><span>{u.created_at ? new Date(u.created_at).toLocaleDateString() : ""}</span></li>)}</ul>
-          </div>
-          <div className="bg-white rounded-md p-6 shadow-sm">
-            <h3 className="text-lg font-semibold mb-4">Buyers ({buyers.length})</h3>
-            <ul>{buyers.slice(-3).map((u, idx) => <li key={idx} className="flex justify-between py-2 border-b last:border-b-0"><span>{u.name}</span><span>{u.created_at ? new Date(u.created_at).toLocaleDateString() : ""}</span></li>)}</ul>
-          </div>
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-6 mb-8">
+          {[{ title: "Providers", list: providers }, { title: "Buyers", list: buyers }].map(
+            (section, idx) => (
+              <div key={idx} className="bg-white rounded-xl shadow-md p-4 sm:p-6">
+                <h3 className="text-lg font-semibold mb-4 text-[#1221ca]">
+                  {section.title} ({section.list.length})
+                </h3>
+                <ul className="divide-y divide-gray-200">
+                  {section.list.slice(-3).map((u, i) => (
+                    <li key={i} className="py-2 flex justify-between text-sm">
+                      <span>{u.name}</span>
+                      <span className="text-gray-500">
+                        {u.created_at ? new Date(u.created_at).toLocaleDateString() : ""}
+                      </span>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            )
+          )}
         </div>
 
         {/* Calendar */}
-        <div className="bg-white rounded-md p-4 shadow-sm">
-          <h3 className="text-lg font-semibold mb-4">{currentDate.toLocaleString("default", { month: "long", year: "numeric" })}</h3>
-          <div className="flex items-center justify-between">
-            <button onClick={prevWeek} className="text-gray-500 hover:text-gray-900">&lt;</button>
-            <div className="grid grid-cols-7 text-center gap-2 w-full">
-              {weekDays.map(day => {
-                const dateStr = `${day.getFullYear()}-${String(day.getMonth()+1).padStart(2,"0")}-${String(day.getDate()).padStart(2,"0")}`
-                const isSelected = selectedDate === dateStr
-                return <div key={dateStr} onClick={() => setSelectedDate(dateStr)} className={`cursor-pointer flex items-center justify-center w-10 h-10 rounded-full ${isSelected ? "bg-[#1221ca] text-white" : "text-gray-700 hover:bg-gray-200"}`}>{day.getDate()}</div>
-              })}
+        <div className="bg-white rounded-xl shadow-md p-4 sm:p-6">
+          <div className="flex flex-col sm:flex-row justify-between items-center mb-4 gap-2">
+            <h3 className="text-lg font-semibold text-[#1221ca]">
+              {currentDate.toLocaleString("default", { month: "long", year: "numeric" })}
+            </h3>
+            <div className="space-x-3">
+              <button
+                onClick={prevWeek}
+                className="px-3 py-1 bg-gray-100 rounded hover:bg-gray-200"
+              >
+                &lt;
+              </button>
+              <button
+                onClick={nextWeek}
+                className="px-3 py-1 bg-gray-100 rounded hover:bg-gray-200"
+              >
+                &gt;
+              </button>
             </div>
-            <button onClick={nextWeek} className="text-gray-500 hover:text-gray-900">&gt;</button>
+          </div>
+          <div className="grid grid-cols-7 gap-2 text-center">
+            {weekDays.map((day) => {
+              const dateStr = `${day.getFullYear()}-${String(day.getMonth() + 1).padStart(2, "0")}-${String(
+                day.getDate()
+              ).padStart(2, "0")}`
+              const isSelected = selectedDate === dateStr
+              return (
+                <div
+                  key={dateStr}
+                  onClick={() => setSelectedDate(dateStr)}
+                  className={`cursor-pointer flex items-center justify-center w-8 sm:w-10 h-8 sm:h-10 rounded-full ${
+                    isSelected ? "bg-[#1221ca] text-white" : "hover:bg-gray-200 text-gray-700"
+                  } transition`}
+                >
+                  {day.getDate()}
+                </div>
+              )
+            })}
           </div>
         </div>
-      </div>
+      </main>
     </div>
   )
 }

@@ -3,214 +3,212 @@ import { useEffect, useState } from "react";
 import AddClaimModal from "./AddClaimModal";
 import ViewClaimModal from "./ViewClaimModal";
 import Link from "next/link";
-import { useRouter } from "next/navigation"
+import { useRouter } from "next/navigation";
+import {
+  LayoutDashboard,
+  Package,
+  FileText,
+  FileSignature,
+  MessageSquare,
+  AlertCircle,
+  LogOut,
+  Menu,
+  PlusCircle,
+  Eye,
+  Trash2,
+} from "lucide-react";
 
-export default function Claims() {
+const Claims = () => {
   const [claims, setClaims] = useState<any[]>([]);
   const [selectedClaim, setSelectedClaim] = useState<any | null>(null);
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
   const [isViewModalOpen, setIsViewModalOpen] = useState(false);
+  const [sidebarOpen, setSidebarOpen] = useState(false);
 
-  const router = useRouter()
+  const router = useRouter();
+  const token = typeof window !== "undefined" ? localStorage.getItem("token") : null;
 
+  // Déconnexion
   const handleLogout = async () => {
     try {
-      const token = localStorage.getItem("token")
+      if (!token) {
+        router.push("/");
+        return;
+      }
 
-      await fetch("http://127.0.0.1:8000/api/logout", {
+      await fetch("/api/logout", {
         method: "POST",
         headers: {
-          "Authorization": `Bearer ${token}`,
+          Authorization: `Bearer ${token}`,
           "Content-Type": "application/json",
         },
-      })
+      }).catch(() => {});
 
-      // Nettoyer le storage
-      localStorage.removeItem("token")
-      localStorage.removeItem("role")
-
-      // Rediriger vers la page d'accueil
-      router.push("/")
+      localStorage.clear();
+      router.push("/");
     } catch (error) {
-      console.error("Erreur de déconnexion", error)
+      console.error("Erreur de déconnexion :", error);
     }
-  }
-
-  const handleSaveClaim = (newClaim: any) => {
-    setClaims([...claims, newClaim]);
   };
 
+  //Charger les réclamations
+  useEffect(() => {
+    if (!token) return;
+    const fetchClaims = async () => {
+      try {
+        const res = await fetch("/api/reclamation", {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+        if (!res.ok) throw new Error("Erreur lors du chargement");
+        const data = await res.json();
+        setClaims(data);
+      } catch (err) {
+        console.error("Erreur chargement réclamations:", err);
+      }
+    };
+    fetchClaims();
+  }, [token]);
+
+  // Actions
+  const handleSaveClaim = (newClaim: any) => setClaims((prev) => [...prev, newClaim]);
   const handleViewClaim = (id: number) => {
     const claim = claims.find((c) => c.id === id);
     setSelectedClaim(claim);
     setIsViewModalOpen(true);
   };
-
- // Supprimer une réclamation
   const handleDeleteClaim = async (id: number) => {
     try {
-      const token = localStorage.getItem("token");
-      const res = await fetch(`http://127.0.0.1:8000/api/reclamation/${id}`, {
+      const res = await fetch(`/api/reclamation/${id}`, {
         method: "DELETE",
         headers: { Authorization: `Bearer ${token}` },
       });
-
-      if (res.ok) {
-        setClaims(claims.filter((claim) => claim.id !== id));
-      }
-    } catch (error) {
-      console.error("Erreur lors de la suppression:", error);
+      if (res.ok) setClaims(claims.filter((c) => c.id !== id));
+    } catch (err) {
+      console.error("Erreur suppression:", err);
     }
   };
 
- // Charger toutes les réclamations
-  useEffect(() => {
-    const fetchClaims = async () => {
-      const token =
-        typeof window !== "undefined" ? localStorage.getItem("token") : null;
-
-      if (!token) {
-        console.error("Token manquant, impossible de récupérer les réclamations.");
-        return;
-      }
-
-      try {
-        const res = await fetch("http://127.0.0.1:8000/api/reclamation/all", {
-          headers: { Authorization: `Bearer ${token}` },
-        });
-        const data = await res.json();
-        setClaims(data);
-      } catch (error) {
-        console.error("Erreur lors du chargement des réclamations:", error);
-      }
-    };
-
-    fetchClaims();
-  }, []);
   return (
-    <div className="flex h-screen">
-              {/* sidebar */}
-        <div className="w-64 bg-black text-white p-6 flex flex-col justify-between">
-         <div>
-           <h1 className="text-3xl font-bold mb-10">Logo</h1>
-            <nav>
-               <ul>
-                 <li className="mb-4">
-                   <Link href="/dashboards/provider" className="flex items-center p-3 rounded-md hover:bg-gray-800">
-                     <svg className="w-5 h-5 mr-3" fill="currentColor" viewBox="0 0 20 20">
-                        <path d="M10 2a8 8 0 100 16 8 8 0 000-16zM8 11.5a1.5 1.5 0 113 0v4a1.5 1.5 0 11-3 0v-4zM10 8a1.5 1.5 0 11-3 0 1.5 1.5 0 013 0z" clipRule="evenodd" fillRule="evenodd"></path>
-                      </svg>
-                         Dashboard 
-                    </Link>
-                  </li>
-                  <li className="mb-4">
-                    <Link href="#" className="flex items-center p-3 rounded-md hover:bg-gray-800">
-                      <svg className="w-5 h-5 mr-3" fill="currentColor" viewBox="0 0 20 20">
-                        <path d="M2.003 5.884L10 9.882l7.997-3.998A2 2 0 0016 4H4a2 2 0 00-1.997 1.884zM18 8.118l-8 4-8-4V14a2 2 0 002 2h12a2 2 0 002-2V8.118z"></path>
-                      </svg>
-                       Messages
-                    </Link> 
-                  </li>
-                  <li className="mb-4">
-                    <Link href="/dashboards/provider/pages/estimates" className="flex items-center p-3 rounded-md hover:bg-gray-800">
-                      <svg className="w-5 h-5 mr-3" fill="currentColor" viewBox="0 0 20 20">
-                        <path d="M13 6a3 3 0 11-6 0 3 3 0 016 0zM15 8.114a1 1 0 011-1h2.5L12 1.5 3.5 7.114H6a1 1 0 011 1v7.5A1.5 1.5 0 008.5 17h3a1.5 1.5 0 001.5-1.5V8.114z"></path>
-                      </svg> 
-                        Estimates 
-                    </Link> 
-                  </li> 
-                  <li className="mb-4">
-                    <Link href="/dashboards/provider/pages/products" className="flex items-center p-3 rounded-md hover:bg-gray-800">
-                      <svg className="w-5 h-5 mr-3" fill="currentColor" viewBox="0 0 20 20">
-                        <path d="M10 2a8 8 0 100 16 8 8 0 000-16zM9 11a1 1 0 012 0v2a1 1 0 11-2 0v-2z"></path>
-                      </svg> 
-                        Products
-                    </Link> 
-                  </li>
-                  <li className="mb-4"> 
-                    <Link href="#" className="flex items-center p-3 rounded-md bg-[#1221ca]"> 
-                      <svg className="w-5 h-5 mr-3" fill="currentColor" viewBox="0 0 20 20">
-                        <path d="M17.707 2.293a1 1 0 00-1.414 0L12 6.586 7.707 2.293a1 1 0 10-1.414 1.414L10.586 8 6.293 12.293a1 1 0 101.414 1.414L12 9.414l4.293 4.293a1 1 0 001.414-1.414L13.414 8l4.293-4.293a1 1 0 000-1.414z"></path>
-                      </svg> 
-                        Claims
-                    </Link>
-                  </li>
-                </ul>
-              </nav>
+    <div className="flex h-screen bg-gradient-to-br from-gray-50 to-gray-100 text-gray-900 font-inter">
+      {/* Sidebar */}
+      <aside
+        className={`fixed md:static top-0 left-0 h-full w-64 bg-[#0f172a] text-gray-100 flex flex-col justify-between p-6 shadow-lg transform transition-transform duration-300 z-50 ${
+          sidebarOpen ? "translate-x-0" : "-translate-x-full md:translate-x-0"
+        }`}
+      >
+        <div>
+          <div className="flex items-center justify-between mb-8">
+            <div className="flex items-center space-x-3">
+              <img src="/logo.png" alt="Logo" width={45} height={45} className="rounded-full" />
+              <h1 className="text-lg font-semibold">Provider</h1>
             </div>
-            <div className="mt-auto">
-              <button
-                onClick={handleLogout}
-                className="flex items-center p-3 rounded-md hover:bg-gray-800 w-full text-left"
-              >
-                <svg
-                  className="w-5 h-5 mr-3"
-                  fill="currentColor"
-                  viewBox="0 0 20 20"
-                >
-                  <path d="M10 2a8 8 0 100 16 8 8 0 000-16zM8 11a1 1 0 112 0v2a1 1 0 11-2 0v-2zM10 7a1 1 0 110 2 1 1 0 010-2z"></path>
-                </svg>
-                Logout
-              </button>
-            </div>
-        </div>
-      {/* Main */}
-      <main className="flex-1 p-8 overflow-y-auto">
-        <div className="bg-[#1221ca] text-white p-4 rounded mb-6">
-          <h2 className="text-xl font-semibold">Provider</h2>
+            <button className="md:hidden text-gray-400 hover:text-white" onClick={() => setSidebarOpen(false)}>✕</button>
+          </div>
+
+          <nav className="space-y-3">
+            <Link href="/dashboards/provider" className="flex items-center space-x-3 p-3 rounded-lg hover:bg-gray-800 transition">
+              <LayoutDashboard size={18} /> <span>Dashboard</span>
+            </Link>
+            <Link href="/dashboards/provider/pages/messages" className="flex items-center space-x-3 p-3 rounded-lg hover:bg-gray-800 transition">
+              <MessageSquare size={18} /> <span>Messages</span>
+            </Link>
+            <Link href="/dashboards/provider/pages/estimates" className="flex items-center space-x-3 p-3 rounded-lg hover:bg-gray-800 transition">
+              <FileSignature size={18} /> <span>Estimates</span>
+            </Link>
+            <Link href="/dashboards/provider/pages/products" className="flex items-center space-x-3 p-3 rounded-lg hover:bg-gray-800 transition">
+              <Package size={18} /> <span>Products</span>
+            </Link>
+            <Link href="#" className="flex items-center space-x-3 p-3 rounded-lg bg-[#1221ca] hover:bg-blue-700 transition">
+              <AlertCircle size={18} /> <span>Claims</span>
+            </Link>
+          </nav>
         </div>
 
-        <div className="bg-white rounded-lg shadow p-6">
-          <h3 className="font-bold text-lg mb-4">Claims</h3>
-                    <div className="grid grid-cols-5 gap-4 font-bold border-b pb-2">
-            <div>Claim ID</div>
-            <div>Title</div>
-            <div>Description</div>
-            <div>Date</div>
-            <div>Actions</div>
-          </div>
-          {claims.length ? (
-            claims.map((c) => (
-              <div
-                key={c.id}
-                className="grid grid-cols-5 gap-4 items-center border-b py-3 min-h-[50px]"
-              >
-                <div>{c.id}</div>
-                <div>{c.title}</div>
-                <div className="truncate max-w-[200px]">{c.description}</div>
-                <div>{new Date(c.created_at).toLocaleDateString()}</div>
-                <div className="flex gap-2">
-                  <button onClick={() => handleViewClaim(c.id)} className="bg-green-500 text-white px-2 rounded">
-                    View
-                  </button>
-                  <button
-                    onClick={() => handleDeleteClaim(c.id)}
-                    className="bg-red-500 hover:bg-red-600 text-white px-2 py-1 rounded text-sm"
-                  >
-                    Delete
-                  </button>
-                </div>
-              </div>
-            ))
-          ) : (
-            <p className="mt-4 text-gray-500">No claims found.</p>
-          )}
-          <div className="flex justify-end mt-4">
-            <button
-              onClick={() => setIsAddModalOpen(true)}
-              className="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700"
-            >
-              Add Claim
-            </button>
+        <button onClick={handleLogout} className="flex items-center space-x-3 p-3 rounded-lg hover:bg-gray-800 transition">
+          <LogOut size={18} /> <span>Logout</span>
+        </button>
+      </aside>
+
+      {sidebarOpen && <div className="fixed inset-0 bg-black bg-opacity-40 z-40 md:hidden" onClick={() => setSidebarOpen(false)} />}
+
+      {/* Main*/}
+      <main className="flex-1 p-4 sm:p-6 md:p-8 overflow-y-auto w-full">
+        
+        <div className="flex items-center justify-between mb-6 md:hidden">
+          <button onClick={() => setSidebarOpen(true)}>
+            <Menu size={24} className="text-[#1221ca]" />
+          </button>
+          <h2 className="text-xl font-semibold text-[#1221ca]">Claims</h2>
+        </div>
+
+        <h2 className="hidden md:block text-2xl font-semibold mb-6 text-[#1221ca]">
+          Claims Management
+        </h2>
+
+        <div className="flex justify-end mb-4">
+          <button
+            onClick={() => setIsAddModalOpen(true)}
+            className="flex items-center gap-2 bg-[#1221ca] text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition"
+          >
+            <PlusCircle size={18} /> Add Claim
+          </button>
+        </div>
+
+        {/* Table */}
+        <div className="bg-white rounded-xl shadow-md p-4 sm:p-6">
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm text-left text-gray-600">
+              <thead className="bg-gray-100 text-gray-700 uppercase text-xs">
+                <tr>
+                  <th className="px-4 py-3">ID</th>
+                  <th className="px-4 py-3">Title</th>
+                  <th className="px-4 py-3">Description</th>
+                  <th className="px-4 py-3">Date</th>
+                  <th className="px-4 py-3 text-right">Actions</th>
+                </tr>
+              </thead>
+              <tbody>
+                {claims.length > 0 ? claims.map((c) => (
+                  <tr key={c.id} className="border-b hover:bg-gray-50 transition">
+                    <td className="px-4 py-2">{c.id}</td>
+                    <td className="px-4 py-2 font-medium">{c.title}</td>
+                    <td className="px-4 py-2 truncate max-w-[200px]">{c.description}</td>
+                    <td className="px-4 py-2">{new Date(c.created_at).toLocaleDateString()}</td>
+                    <td className="px-4 py-2 text-right">
+                      <div className="flex justify-end gap-2">
+                        <button
+                          onClick={() => handleViewClaim(c.id)}
+                          className="bg-green-500 hover:bg-green-600 text-white px-3 py-1 rounded flex items-center gap-1"
+                        >
+                          <Eye size={16} />
+                        </button>
+                        <button
+                          onClick={() => handleDeleteClaim(c.id)}
+                          className="bg-red-500 hover:bg-red-600 text-white px-3 py-1 rounded flex items-center gap-1"
+                        >
+                          <Trash2 size={16} />
+                        </button>
+                      </div>
+                    </td>
+                  </tr>
+                )) : (
+                  <tr>
+                    <td colSpan={5} className="text-center py-4 text-gray-500 italic">
+                      No claims found.
+                    </td>
+                  </tr>
+                )}
+              </tbody>
+            </table>
           </div>
         </div>
       </main>
 
       {/* Modals */}
       {isAddModalOpen && <AddClaimModal onClose={() => setIsAddModalOpen(false)} onSave={handleSaveClaim} />}
-      {isViewModalOpen && selectedClaim && (
-        <ViewClaimModal onClose={() => setIsViewModalOpen(false)} claimData={selectedClaim} />
-      )}
+      {isViewModalOpen && selectedClaim && <ViewClaimModal onClose={() => setIsViewModalOpen(false)} claimData={selectedClaim} />}
     </div>
   );
-}
+};
+
+export default Claims;

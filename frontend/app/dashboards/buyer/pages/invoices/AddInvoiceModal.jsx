@@ -13,14 +13,13 @@ export default function AddInvoiceModal({ onClose, onSave }) {
     mode_paiement: "",
   });
 
-  // Récupérer nom utilisateur connecté
   useEffect(() => {
     const fetchUser = async () => {
       try {
         const token = localStorage.getItem("token");
         if (!token) return;
 
-        const res = await fetch("http://127.0.0.1:8000/api/user", {
+        const res = await fetch("/api/user", {
           headers: {
             "Content-Type": "application/json",
             Authorization: `Bearer ${token}`,
@@ -46,7 +45,7 @@ export default function AddInvoiceModal({ onClose, onSave }) {
         const token = localStorage.getItem("token");
         if (!token) return;
 
-        const res = await fetch("http://127.0.0.1:8000/api/product/all", {
+        const res = await fetch("/api/product/all", {
           headers: {
             "Content-Type": "application/json",
             Authorization: `Bearer ${token}`,
@@ -115,7 +114,7 @@ export default function AddInvoiceModal({ onClose, onSave }) {
     setProducts((prev) => prev.filter((_, i) => i !== index));
   };
 
-  // Sauvegarde backend
+ 
   const handleSaveInvoice = async (e) => {
     e.preventDefault();
 
@@ -162,7 +161,7 @@ export default function AddInvoiceModal({ onClose, onSave }) {
     };
 
     try {
-      const res = await fetch("http://127.0.0.1:8000/api/facture/add", {
+      const res = await fetch("/api/facture/add", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -209,7 +208,7 @@ export default function AddInvoiceModal({ onClose, onSave }) {
         </div>
 
         <form onSubmit={handleSaveInvoice} className="space-y-4">
-          {/* Infos facture */}
+         
           <div className="flex justify-between items-start mb-6">
             <div className="flex-1 space-y-4 pr-4">
               <div className="grid grid-cols-2 gap-4">
@@ -338,7 +337,7 @@ export default function AddInvoiceModal({ onClose, onSave }) {
             </button>
           </div>
 
-          {/* Totaux + Paiement */}
+          
           <div className="flex justify-between items-end mt-6">
             <div className="flex items-center space-x-2">
               <label className="text-sm font-medium">Payment method:</label>
